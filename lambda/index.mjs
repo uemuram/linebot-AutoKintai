@@ -1,4 +1,5 @@
 import { Client, validateSignature } from "@line/bot-sdk";
+import { askGemini } from './geminiUtil.mjs';
 
 const channelSecret = process.env.LINE_CHANNEL_SECRET;
 const lineClient = new Client({
@@ -25,7 +26,7 @@ export const handler = async (req) => {
 
     // 返信用メッセージを組み立て
     const messageTExt = body.events[0].message.text;
-    const replyText = messageTExt;
+    const replyText = await askGemini(`次のメッセージに100文字程度で応答してください： ${messageTExt}`);
 
     // LINEへ返信
     await lineClient.replyMessage(replyToken, [

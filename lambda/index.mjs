@@ -21,13 +21,13 @@ export const handler = async (req) => {
         return;
     }
     const replyToken = body.events[0].replyToken;
-    if ( !replyToken || typeof replyToken === 'undefined' ) {
-      return;
+    if (!replyToken || typeof replyToken === 'undefined') {
+        return;
     }
 
     // LINEへ返信
     await lineClient.replyMessage(replyToken, [
-        { type: "text", text: 'お待ちください…'},
+        { type: "text", text: 'お待ちください…' },
     ]);
 
     // 返信用メッセージを組み立て

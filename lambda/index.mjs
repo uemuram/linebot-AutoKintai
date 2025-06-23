@@ -25,25 +25,17 @@ export const handler = async (req) => {
       return;
     }
 
-    console.log("a");
-
     // 返信用メッセージを組み立て
     const messageTExt = body.events[0].message.text;
     const replyText = await askGemini(`次のメッセージに100文字程度で応答してください： ${messageTExt}`);
 
-    console.log("b " + replyText);
-
     const yahoo = await testYahooAccess();
     console.log(yahoo);
-
-    console.log("c");
 
     // LINEへ返信
     await lineClient.replyMessage(replyToken, [
         { type: "text", text: replyText },
     ]);
-
-    console.log("d");
 
     return { statusCode: 200 };
 };

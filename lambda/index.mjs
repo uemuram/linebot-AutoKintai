@@ -25,6 +25,11 @@ export const handler = async (req) => {
       return;
     }
 
+    // LINEへ返信
+    await lineClient.replyMessage(replyToken, [
+        { type: "text", text: 'お待ちください…'},
+    ]);
+
     // 返信用メッセージを組み立て
     const messageTExt = body.events[0].message.text;
     const replyText = await askGemini(`次のメッセージに100文字程度で応答してください： ${messageTExt}`);
@@ -33,7 +38,8 @@ export const handler = async (req) => {
     console.log(yahoo);
 
     // LINEへ返信
-    await lineClient.replyMessage(replyToken, [
+    const userId = body.events[0].source.userId;
+    await lineClient.pushMessage(userId, [
         { type: "text", text: replyText },
     ]);
 

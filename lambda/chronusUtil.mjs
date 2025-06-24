@@ -6,7 +6,7 @@ const CHRONUS_PERSON_CODE = process.env.CHRONUS_PERSON_CODE;
 const CHRONUS_PERSON_PASSWORD = process.env.CHRONUS_PERSON_PASSWORD;
 
 // 勤怠登録
-export async function registKintai() {
+export async function registKintai(year, month, day) {
     // デバッグ用
     let htmlString = '';
 
@@ -23,7 +23,7 @@ export async function registKintai() {
     console.log('--- ページオープン 終了 ---');
 
     // -------------------- ログイン --------------------
-    console.log('--- ログイン 開始');
+    console.log('--- ログイン 開始 ---');
     // 社員番号入力
     await page.type('input[name="PersonCode"]', CHRONUS_PERSON_CODE);
     // パスワード入力
@@ -49,6 +49,47 @@ export async function registKintai() {
     console.log(`MENUフレーム : ${htmlString}`);
     console.log('--- ログイン 終了 ---');
 
+    // -------------------- PJコードリセット --------------------
+    console.log('--- PJコードリセット 開始 ---');
+    // 「工数票部分に前日以前と同じPJコード・工程区分を表示する」のチェックを外す
+    const pjCodeDispCheckbox = await menuFrame.$('input.InputCheck[name="costInputDivisionDisp"]');
+    await menuFrame.evaluate(el => el.checked = false, pjCodeDispCheckbox);
+    console.log('--- PJコードリセット 終了 ---');
+
+    // -------------------- 日付けクリック --------------------
+    console.log('--- 日付けクリック 開始 ---');
+    // 日付セルを取得
+    const dateLinkOnclickValue = `JavaScript:return  fnClickHizuke(${year},${month},${day},'PERSONAL');`;
+    const dateLinkSelector = `a[onclick="${dateLinkOnclickValue}"]`;
+    const dateLink = await menuFrame.$(dateLinkSelector);
+    // クリック可能なリンクが見つからない場合はエラーとする
+    if (!dateLink) {
+        const msg = '指定日付の勤怠ぺージに遷移できませんでした。すでに勤怠が登録済みの可能性があります';
+        console.log(msg);
+        await browser.close();
+        return { success: false, msg: msg };
+    }
+    // クリック
+    await dateLink.click();
+    // OPERATIONフレームが更新されるのを待つ
+    try {
+        await page.waitForFunction(() => {
+            const frame = Array.from(window.frames).find(f => f.name === 'OPERATION');
+            if (!frame) return false;
+            const nobr = frame.document.querySelector('nobr.kinoutitle');
+            return nobr && nobr.textContent.trim() === '勤休内容登録';
+        }, { timeout: 5000 });  // 最大5秒待つ
+    } catch (e) {
+        const msg = '勤怠ページへの遷移に失敗しました';
+        console.log(msg);
+        await browser.close();
+        return { success: false, msg: msg };
+    }
+    const frames2 = page.frames();
+    const operationFrame = frames2.find(f => f.name() === 'OPERATION');
+    htmlString = await operationFrame.content();
+    console.log(`OPERATIONフレーム : ${htmlString}`);
+    console.log('--- 日付けクリック 終了 ---');
 
     await browser.close();
     return { success: true };

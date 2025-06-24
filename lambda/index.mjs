@@ -51,8 +51,16 @@ export const handler = async (req) => {
     // console.log(replyText);
     // const replyText = "OKです";
 
+    // TODO Geminiの応答を整備(開始日などで補完)
+    // TODO 日付けの整合性が撮れていない場合はエラー応答を返す
+    // TODO 当月以外の場合はエラー応答を返す
+    // TODO 日付けはGeminiから取得する
+    const year = '2025';
+    const month = '6';
+    const day = '24';
+
     //const yahoo = await testYahooAccess();
-    const result = await registKintai();
+    const result = await registKintai(year, month, day);
     console.log(result);
 
     // LINEへ返信

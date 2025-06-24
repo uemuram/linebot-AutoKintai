@@ -47,15 +47,17 @@ export const handler = async (req) => {
         + `・メッセージは「${messageText}」です`;
     console.log(prompt);
 
-    const replyText = await askGemini(prompt);
-    console.log(replyText);
+    // const replyText = await askGemini(prompt);
+    // console.log(replyText);
     // const replyText = "OKです";
 
     //const yahoo = await testYahooAccess();
-    //const result = await registKintai();
-    //console.log('登録OK');
+    const result = await registKintai();
+    console.log(result);
 
     // LINEへ返信
+    const replyText = result.success ? "勤怠を登録しました" : `勤怠登録でエラーが発生しました。エラーメッセージ:${result.msg}`;
+
     const userId = body.events[0].source.userId;
     await lineClient.pushMessage(userId, [
         { type: "text", text: replyText },

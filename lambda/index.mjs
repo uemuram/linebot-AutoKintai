@@ -59,9 +59,16 @@ export const handler = async (req) => {
     const month = '6';
     const day = '24';
 
-    //const yahoo = await testYahooAccess();
-    const result = await registKintai(year, month, day);
-    console.log(result);
+    // クロノスに勤怠を登録する
+    let result;
+    try {
+        result = await registKintai(year, month, day);
+        console.log(result);
+    } catch (e) {
+        console.log(e.message);
+        console.log(e.stack);
+        result = { success: false, msg: '予期せぬエラーが発生しました' };
+    }
 
     // LINEへ返信
     const replyText = result.success ? "勤怠を登録しました" : `勤怠登録でエラーが発生しました。エラーメッセージ:${result.msg}`;

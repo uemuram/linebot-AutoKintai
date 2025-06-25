@@ -57,7 +57,7 @@ export const handler = async (req) => {
     // TODO 日付けはGeminiから取得する
     const year = '2025';
     const month = '6';
-    const day = '24';
+    const day = '25';
     const startTime = '0900';
     const endTime = '1800';
 

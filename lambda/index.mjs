@@ -46,9 +46,28 @@ export const handler = async (req) => {
         + `・メッセージは「${messageText}」です`;
     console.log(prompt);
 
-    // const replyText = await askGemini(prompt);
-    // console.log(replyText);
-    // const replyText = "OKです";
+    // Geminiに要求メッセージ解析をリクエスト
+    let replyFromAIStr;
+    // try {
+    //     replyFromAIStr = await askGemini(prompt);
+    // } catch (e) {
+    //     console.log(e.message);
+    //     console.log(e.stack);
+    //     result = { success: false, msg: 'リクエストの解析で予期せぬエラーが発生しました' };
+    // }
+    replyFromAIStr = '```json { "type": 3, "date": "", "startTime": "", "endTime": "", "res": "意味がわかりませんでした。" }  ```';
+
+    // 応答をjsオブジェクトに変換
+    let inputObj;
+    console.log(replyFromAIStr);
+    try {
+        inputObj = JSON.parse(replyFromAIStr.replace(/```json|```/g, '').trim());
+    } catch (e) {
+        console.log(e.message);
+        console.log(e.stack);
+        result = { success: false, msg: 'リクエストの解析で文法エラーが発生しました' };
+    }
+    console.log(inputObj);
 
     // TODO Geminiの応答を整備(開始日などで補完)
     // TODO 日付けの整合性が撮れていない場合はエラー応答を返す
@@ -63,14 +82,15 @@ export const handler = async (req) => {
 
     // クロノスに勤怠を登録する
     let result;
-    try {
-        result = await registKintai(year, month, day, startTime, endTime);
-        console.log(result);
-    } catch (e) {
-        console.log(e.message);
-        console.log(e.stack);
-        result = { success: false, msg: '予期せぬエラーが発生しました' };
-    }
+    // try {
+    //     result = await registKintai(year, month, day, startTime, endTime);
+    //     console.log(result);
+    // } catch (e) {
+    //     console.log(e.message);
+    //     console.log(e.stack);
+    //     result = { success: false, msg: 'クロノスの操作で予期せぬエラーが発生しました' };
+    // }
+    result = { success: true };
 
     // LINEへ返信
     const replyText = result.success ? "勤怠を登録しました" : `勤怠登録でエラーが発生しました。エラーメッセージ:${result.msg}`;

@@ -6,7 +6,7 @@ const CHRONUS_PERSON_CODE = process.env.CHRONUS_PERSON_CODE;
 const CHRONUS_PERSON_PASSWORD = process.env.CHRONUS_PERSON_PASSWORD;
 
 // 勤怠登録
-export async function registKintai(year, month, day) {
+export async function registKintai(year, month, day, startTime, endTime) {
     // デバッグ用
     let htmlString = '';
 
@@ -64,7 +64,7 @@ export async function registKintai(year, month, day) {
     const dateLink = await menuFrame.$(dateLinkSelector);
     // クリック可能なリンクが見つからない場合はエラーとする
     if (!dateLink) {
-        const msg = '指定日付の勤怠ぺージに遷移できませんでした。すでに勤怠が登録済みの可能性があります';
+        const msg = '指定日付の勤怠ぺージに遷移できませんでした。すでに勤怠が承認済みの可能性があります';
         console.log(msg);
         await browser.close();
         return { success: false, msg: msg };
@@ -91,25 +91,66 @@ export async function registKintai(year, month, day) {
     console.log(`OPERATIONフレーム : ${htmlString}`);
     console.log('--- 日付けクリック 終了 ---');
 
+    // -------------------- 登録用データ整理 --------------------
+    const workingTime = calculateWorkingTime(startTime, endTime);
+    console.log(`業務時間 : ${year}/${month}/${day} ${startTime}-${endTime}`);
+    console.log(`工数合計 : ${workingTime}`);
+
     await browser.close();
     return { success: true };
 }
 
-export async function testYahooAccess() {
-    const browser = await puppeteer.launch({
-        args: chromium.args,
-        defaultViewport: chromium.defaultViewport,
-        executablePath: await chromium.executablePath(),
-        headless: chromium.headless,
-    });
+// 業務開始時刻と終了時刻から業務時間を計算
+function calculateWorkingTime(startTime, endTime) {
+    // 時と分を数値に変換
+    const startHour = parseInt(startTime.substring(0, 2), 10);
+    const startMin = parseInt(startTime.substring(2, 4), 10);
+    const endHour = parseInt(endTime.substring(0, 2), 10);
+    const endMin = parseInt(endTime.substring(2, 4), 10);
 
-    let page = await browser.newPage();
-    await page.goto('https://www.yahoo.co.jp/');
-    const pageTitle = await page.title();
+    // 分単位の時間に変換
+    const startTotalMin = startHour * 60 + startMin;
+    const endTotalMin = endHour * 60 + endMin;
 
-    await page.waitForSelector('#tabpanelTopics1');
-    const innerText = await page.evaluate(() => (document.querySelector('#tabpanelTopics1')).innerText);
+    // 業務時間（分）
+    let workingMin = endTotalMin - startTotalMin;
 
-    await browser.close();
-    return pageTitle + "\n\n" + innerText;
+    // 休憩時間（12:00〜13:00 の被り分）を引く
+    const breakStart = 12 * 60;
+    const breakEnd = 13 * 60;
+
+    const overlapStart = Math.max(startTotalMin, breakStart);
+    const overlapEnd = Math.min(endTotalMin, breakEnd);
+
+    if (overlapStart < overlapEnd) {
+        workingMin -= (overlapEnd - overlapStart);
+    }
+
+    // 時と分に戻す
+    const hh = Math.floor(workingMin / 60);
+    const mm = workingMin % 60;
+
+    // 4 桁文字列 (HHMM) に整形
+    const result = `${hh.toString().padStart(2, '0')}${mm.toString().padStart(2, '0')}`;
+
+    return result;
 }
+
+// export async function testYahooAccess() {
+//     const browser = await puppeteer.launch({
+//         args: chromium.args,
+//         defaultViewport: chromium.defaultViewport,
+//         executablePath: await chromium.executablePath(),
+//         headless: chromium.headless,
+//     });
+
+//     let page = await browser.newPage();
+//     await page.goto('https://www.yahoo.co.jp/');
+//     const pageTitle = await page.title();
+
+//     await page.waitForSelector('#tabpanelTopics1');
+//     const innerText = await page.evaluate(() => (document.querySelector('#tabpanelTopics1')).innerText);
+
+//     await browser.close();
+//     return pageTitle + "\n\n" + innerText;
+// }

@@ -1,7 +1,6 @@
 import { Client, validateSignature } from "@line/bot-sdk";
 import { askGemini } from './geminiUtil.mjs';
 import { registKintai } from './chronusUtil.mjs';
-import { testYahooAccess } from './chronusUtil.mjs';
 
 const channelSecret = process.env.LINE_CHANNEL_SECRET;
 const lineClient = new Client({
@@ -53,16 +52,19 @@ export const handler = async (req) => {
 
     // TODO Geminiの応答を整備(開始日などで補完)
     // TODO 日付けの整合性が撮れていない場合はエラー応答を返す
+    // TODO 終業時刻は0000～2359らしい
     // TODO 当月以外の場合はエラー応答を返す
     // TODO 日付けはGeminiから取得する
     const year = '2025';
     const month = '6';
     const day = '24';
+    const startTime = '0900';
+    const endTime = '1800';
 
     // クロノスに勤怠を登録する
     let result;
     try {
-        result = await registKintai(year, month, day);
+        result = await registKintai(year, month, day, startTime, endTime);
         console.log(result);
     } catch (e) {
         console.log(e.message);

@@ -104,12 +104,12 @@ export async function registKintai(year, month, day, startTime, endTime) {
     // -------------------- 打刻を入力 --------------------
     console.log('--- 打刻入力 開始 ---');
     await operationFrame.click('input[name="StartTime"]', { clickCount: 3 });
-    await operationFrame.type('input[name="StartTime"]', '0900');
+    await operationFrame.type('input[name="StartTime"]', startTime);
     await operationFrame.click('input[name="EndTime"]', { clickCount: 3 });
-    await operationFrame.type('input[name="EndTime"]', '1800');
+    await operationFrame.type('input[name="EndTime"]', endTime);
 
     const targetPjCode = '0001WAD';
-    const dakokuResult = await operationFrame.evaluate((targetPjCode) => {
+    const dakokuResult = await operationFrame.evaluate((targetPjCode, workingTime) => {
         const selects = Array.from(document.querySelectorAll('select[name="CostNoItem"]'));
         const detailInputs = Array.from(document.querySelectorAll('input[name="CostDetailCode"]'));
         const quantityInputs = Array.from(document.querySelectorAll('input[name="CostQuantity"]'));
@@ -134,11 +134,11 @@ export async function registKintai(year, month, day, startTime, endTime) {
 
             // 工数（input）
             const quantityInput = quantityInputs[i];
-            quantityInput.value = '0800';
+            quantityInput.value = workingTime;
             quantityInput.dispatchEvent(new Event('blur', { bubbles: true }));
         }
         return { success: true };
-    }, targetPjCode);
+    }, targetPjCode, workingTime);
 
     // 失敗チェック
     if (!dakokuResult.success) {

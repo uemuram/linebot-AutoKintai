@@ -117,83 +117,83 @@ export const handler = async (req) => {
 // console.log(adjustInput({ type: 2, date: '20250101', startTime: '', endTime: '', res: '' }));
 // console.log(adjustInput({ type: 3, date: '', startTime: '', endTime: '', res: '' }));
 function adjustInput(input) {
-    const result = {
-        success: true,
-        year: '',
-        month: '',
-        day: '',
-        startTime: '',
-        endTime: ''
-    };
+  const result = {
+    success: true,
+    year: '',
+    month: '',
+    day: '',
+    startTime: '',
+    endTime: ''
+  };
 
-    // 日本時間で現在時刻を取得
-    const now = new Date();
-    const jst = new Date(now.toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' }));
+  // 日本時間で現在時刻を取得
+  const now = new Date();
+  const jst = new Date(now.toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' }));
 
-    const pad = (n, len = 2) => n.toString().padStart(len, '0');
+  const pad = (n, len = 2) => n.toString().padStart(len, '0');
 
-    const yearStr = jst.getFullYear().toString();
-    const monthNum = jst.getMonth() + 1;
-    const dayNum = jst.getDate();
-    const today = `${yearStr}${pad(monthNum)}${pad(dayNum)}`;
+  const yearStr = jst.getFullYear().toString();
+  const monthNum = jst.getMonth() + 1;
+  const dayNum = jst.getDate();
+  const today = `${yearStr}${pad(monthNum)}${pad(dayNum)}`;
+  const currentYearMonth = `${yearStr}${pad(monthNum)}`; // 今月のYYYYMM
 
-    // 時刻を15分単位に丸める関数（切り捨て）
-    const getRoundedTime = (date) => {
-        const hours = date.getHours();
-        const minutes = Math.floor(date.getMinutes() / 15) * 15;
-        return `${pad(hours)}${pad(minutes)}`;
-    };
+  // 時刻を15分単位に丸める関数（切り捨て）
+  const getRoundedTime = (date) => {
+    const hours = date.getHours();
+    const minutes = Math.floor(date.getMinutes() / 15) * 15;
+    return `${pad(hours)}${pad(minutes)}`;
+  };
 
-    switch (input.type) {
-        case 1:
-            result.year = yearStr;
-            result.month = monthNum.toString(); // 0埋めなし
-            result.day = dayNum.toString();     // 0埋めなし
-            result.startTime = '0900';
+  switch (input.type) {
+    case 1:
+      result.year = yearStr;
+      result.month = monthNum.toString();
+      result.day = dayNum.toString();
+      result.startTime = '0900';
 
-            const endTime1 = getRoundedTime(jst);
-            if (parseInt(endTime1) < 900) {
-                result.success = false;
-                break;
-            }
+      const endTime1 = getRoundedTime(jst);
+      if (parseInt(endTime1) < 900) {
+        result.success = false;
+        break;
+      }
 
-            result.endTime = endTime1;
-            break;
+      result.endTime = endTime1;
+      break;
 
-        case 2:
-            let inputDate = input.date || today;
+    case 2:
+      let inputDate = input.date || today;
 
-            if (/^\d{8}$/.test(inputDate) && inputDate === today) {
-                result.year = inputDate.substring(0, 4);
-                result.month = parseInt(inputDate.substring(4, 6)).toString(); // 0埋めなし
-                result.day = parseInt(inputDate.substring(6, 8)).toString();   // 0埋めなし
-            } else {
-                result.success = false;
-                break;
-            }
+      if (/^\d{8}$/.test(inputDate) && inputDate.substring(0, 6) === currentYearMonth) {
+        result.year = inputDate.substring(0, 4);
+        result.month = parseInt(inputDate.substring(4, 6)).toString();
+        result.day = parseInt(inputDate.substring(6, 8)).toString();
+      } else {
+        result.success = false;
+        break;
+      }
 
-            result.startTime = input.startTime || '0900';
+      result.startTime = input.startTime || '0900';
 
-            if (input.endTime) {
-                result.endTime = input.endTime;
-            } else {
-                result.endTime = getRoundedTime(jst);
-            }
+      if (input.endTime) {
+        result.endTime = input.endTime;
+      } else {
+        result.endTime = getRoundedTime(jst);
+      }
 
-            if (parseInt(result.endTime) < parseInt(result.startTime)) {
-                result.success = false;
-            }
+      if (parseInt(result.endTime) < parseInt(result.startTime)) {
+        result.success = false;
+      }
 
-            break;
+      break;
 
-        default:
-            result.success = false;
-            break;
-    }
+    default:
+      result.success = false;
+      break;
+  }
 
-    return result;
+  return result;
 }
-
 
 // 今日の日付をyyyy/mm/dd形式で返す
 function getTodayString() {

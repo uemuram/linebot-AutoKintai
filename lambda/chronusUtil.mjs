@@ -146,7 +146,6 @@ export async function registKintai(year, month, day, startTime, endTime) {
         await browser.close();
         return { success: false, msg: dakokuResult.msg };
     }
-
     console.log('--- 打刻入力 終了 ---');
 
     // -------------------- 登録ボタン押下 --------------------
@@ -174,7 +173,7 @@ export async function registKintai(year, month, day, startTime, endTime) {
         const msg = '登録ボタンの押下に失敗しました';
         console.error(msg);
         await browser.close();
-        return { success: false, msg };
+        return { success: false, msg: msg };
     }
     console.log('--- 登録ボタン押下 終了 ---');
 

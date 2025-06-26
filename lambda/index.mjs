@@ -136,13 +136,23 @@ function adjustInput(input) {
   const monthNum = jst.getMonth() + 1;
   const dayNum = jst.getDate();
   const today = `${yearStr}${pad(monthNum)}${pad(dayNum)}`;
-  const currentYearMonth = `${yearStr}${pad(monthNum)}`; // 今月のYYYYMM
+  const currentYearMonth = `${yearStr}${pad(monthNum)}`;
 
   // 時刻を15分単位に丸める関数（切り捨て）
   const getRoundedTime = (date) => {
     const hours = date.getHours();
     const minutes = Math.floor(date.getMinutes() / 15) * 15;
     return `${pad(hours)}${pad(minutes)}`;
+  };
+
+  // HHMM形式文字列 → Dateへの変換ユーティリティ
+  const toRoundedTimeFromHHMM = (hhmm, baseDate) => {
+    const h = parseInt(hhmm.substring(0, 2));
+    const m = parseInt(hhmm.substring(2, 4));
+    const date = new Date(baseDate);
+    date.setHours(h);
+    date.setMinutes(m);
+    return getRoundedTime(date);
   };
 
   switch (input.type) {
@@ -173,17 +183,21 @@ function adjustInput(input) {
         break;
       }
 
-      result.startTime = input.startTime || '0900';
-
-      const endDate = new Date(jst);
-      if (input.endTime) {
-        const h = parseInt(input.endTime.substring(0, 2));
-        const m = parseInt(input.endTime.substring(2, 4));
-        endDate.setHours(h);
-        endDate.setMinutes(m);
+      // startTime の処理（丸める）
+      if (input.startTime) {
+        result.startTime = toRoundedTimeFromHHMM(input.startTime, jst);
+      } else {
+        result.startTime = '0900';
       }
-      result.endTime = getRoundedTime(endDate);
 
+      // endTime の処理（丸める）
+      if (input.endTime) {
+        result.endTime = toRoundedTimeFromHHMM(input.endTime, jst);
+      } else {
+        result.endTime = getRoundedTime(jst);
+      }
+
+      // 時間順チェック
       if (parseInt(result.endTime) < parseInt(result.startTime)) {
         result.success = false;
       }

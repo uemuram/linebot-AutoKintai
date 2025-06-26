@@ -175,11 +175,14 @@ function adjustInput(input) {
 
       result.startTime = input.startTime || '0900';
 
+      const endDate = new Date(jst);
       if (input.endTime) {
-        result.endTime = input.endTime;
-      } else {
-        result.endTime = getRoundedTime(jst);
+        const h = parseInt(input.endTime.substring(0, 2));
+        const m = parseInt(input.endTime.substring(2, 4));
+        endDate.setHours(h);
+        endDate.setMinutes(m);
       }
+      result.endTime = getRoundedTime(endDate);
 
       if (parseInt(result.endTime) < parseInt(result.startTime)) {
         result.success = false;
@@ -194,6 +197,7 @@ function adjustInput(input) {
 
   return result;
 }
+
 
 // 今日の日付をyyyy/mm/dd形式で返す
 function getTodayString() {

@@ -15,16 +15,20 @@ export async function registKintai(year, month, day, startTime, endTime) {
     });
 
     try {
+        console.log('----------- ページオープン 開始 -----------');
         const page = await browser.newPage();
         await page.goto(`${CHRONUS_BASE_URL}/Lysithea/JSP_Files/authentication/WC010_1.jsp?COMPANY_CODE=100`);
 
+        console.log('----------- ログイン 開始 -----------');
         const menuFrame = await login(page);
         if (!menuFrame) throw new Error('クロノスのログインに失敗しました');
 
+        console.log('----------- 日付けクリック 開始 -----------');
         await resetPJCode(menuFrame);
-        await clickDate(menuFrame, page, year, month, day);
+        const operationFrame = await clickDate(menuFrame, page, year, month, day);
+        if (!operationFrame) throw new Error('日付けリンクのクリックに失敗しました');
 
-        const operationFrame = getFrameByName(page, 'OPERATION');
+        console.log('----------- 勤怠登録 開始 -----------');
         const workingTime = calculateWorkingTime(startTime, endTime);
 
         console.log(`業務時間: ${year}/${month}/${day} ${startTime}-${endTime} → 工数: ${workingTime}`);
@@ -76,6 +80,8 @@ async function clickDate(menuFrame, page, year, month, day) {
         const title = frame.document.querySelector('nobr.kinoutitle');
         return title?.textContent.trim() === '勤休内容登録';
     }, { timeout: 5000 });
+
+    return getFrameByName(page, 'OPERATION');
 }
 
 // 工数入力・打刻入力処理

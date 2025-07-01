@@ -32,12 +32,12 @@ export async function registKintai(year, month, day, startTime, endTime) {
         console.log('----------- 勤怠登録 開始 -----------');
         const workingTime = calculateWorkingTime(startTime, endTime);
         console.log(`業務時間: ${year}/${month}/${day} ${startTime}-${endTime} → 工数: ${workingTime}`);
-        await inputWorkDetails(operationFrame, startTime, endTime, '0001WAD', workingTime);
 
         let pjCodeInfo = JSON.parse(CHRONUS_PJCODE_INFO);
         console.log(`PJコード情報(時間計算前) : ${JSON.stringify(pjCodeInfo)}`);
         pjCodeInfo = allocateWorkingTime(workingTime, pjCodeInfo);
         console.log(`PJコード情報(時間計算後) : ${JSON.stringify(pjCodeInfo)}`);
+        await inputWorkDetails(operationFrame, startTime, endTime, pjCodeInfo);
 
         const success = await submitRegistration(operationFrame, page);
         if (!success) throw new Error('登録ボタンの押下に失敗しました');
@@ -90,32 +90,36 @@ async function clickDate(menuFrame, page, year, month, day) {
 }
 
 // 工数入力・打刻入力処理
-async function inputWorkDetails(frame, start, end, pjCode, workTime) {
+async function inputWorkDetails(frame, start, end, pjCodeInfo) {
     await frame.click('input[name="StartTime"]', { clickCount: 3 });
     await frame.type('input[name="StartTime"]', start);
     await frame.click('input[name="EndTime"]', { clickCount: 3 });
     await frame.type('input[name="EndTime"]', end);
 
-    const result = await frame.evaluate((pjCode, workTime) => {
+    const result = await frame.evaluate((pjCodeInfo) => {
         const selects = document.querySelectorAll('select[name="CostNoItem"]');
         const details = document.querySelectorAll('input[name="CostDetailCode"]');
         const quantities = document.querySelectorAll('input[name="CostQuantity"]');
 
-        const select = selects[0];
-        const option = Array.from(select.options).find(o => o.textContent.includes(pjCode));
-        if (!option) return { success: false, msg: `PJコード(${pjCode})が見つかりません` };
+        for (let i = 0; i < pjCodeInfo.length; i++) {
+            const info = pjCodeInfo[i];
 
-        select.value = option.value;
-        select.dispatchEvent(new Event('change', { bubbles: true }));
+            const select = selects[i];
+            const option = Array.from(select.options).find(o => o.textContent.includes(info.pjcode));
+            if (!option) { return { success: false, msg: `PJコード(${info.pjcode})が select[${i}] に見つかりません`, }; }
 
-        details[0].value = '0099';
-        details[0].dispatchEvent(new Event('blur', { bubbles: true }));
+            select.value = option.value;
+            select.dispatchEvent(new Event('change', { bubbles: true }));
 
-        quantities[0].value = workTime;
-        quantities[0].dispatchEvent(new Event('blur', { bubbles: true }));
+            details[i].value = info.costDetailCode;
+            details[i].dispatchEvent(new Event('blur', { bubbles: true }));
+
+            quantities[i].value = info.workingTime;
+            quantities[i].dispatchEvent(new Event('blur', { bubbles: true }));
+        }
 
         return { success: true };
-    }, pjCode, workTime);
+    }, pjCodeInfo);
 
     if (!result.success) throw new Error(result.msg);
 }

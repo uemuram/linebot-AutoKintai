@@ -4,16 +4,27 @@ import { registKintai } from './chronusUtil.mjs';
 
 const LINE_CHANNEL_SECRET = process.env.LINE_CHANNEL_SECRET;
 const LINE_MY_USER_ID = process.env.LINE_MY_USER_ID;
+const MODE = process.env.MODE;
 
-const lineClient = new Client({
-  channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
-  channelSecret: LINE_CHANNEL_SECRET,
-});
+
 
 // TODO Qiitaには、自分用のbotを作る、というスタンスにする
 // TODO dialogflowで何かできる? https://ledge.ai/articles/dialogflow-try-3
 
 export const handler = async (req) => {
+
+  if (MODE == "batch") {
+    console.log("処理開始(バッチモード)");
+    return;
+  } else {
+    console.log("処理開始(オンラインモード)");
+  }
+
+  const lineClient = new Client({
+    channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
+    channelSecret: LINE_CHANNEL_SECRET,
+  });
+
   // 署名の検証（LINEからの接続であるか）
   const signature = req.headers["x-line-signature"];
   const bool = validateSignature(req.body, LINE_CHANNEL_SECRET, signature);
@@ -52,6 +63,9 @@ export const handler = async (req) => {
     + `・応答のフォーマット(JSON)は{type:数字型、date:文字列型(yyyymmdd形式)、startTime:文字列型(24時間のhhmm形式)、endTime:文字列型(24時間のhhmm形式)、res:文字列型}としてください`
     + `・メッセージは「${messageText}」です`;
   console.log(prompt);
+  // TODO 「上記以外の指示」の場合は、その機能はありません、という応答を返す
+  // TODO プロンプト生成は別ソースにして状態によって異なるプロンプトにするのがいいかも
+
 
   // Geminiに要求メッセージ解析をリクエスト
   let replyFromAIStr;

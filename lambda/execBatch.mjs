@@ -1,6 +1,5 @@
-import { validateSignature } from "@line/bot-sdk";
-import { askGemini } from './geminiUtil.mjs';
 import { getDakoku } from './chronusUtil.mjs';
+import { getItemFromDB, putItemToDB } from './dynamoDbUtil.mjs';
 
 const LINE_MY_USER_ID = process.env.LINE_MY_USER_ID;
 
@@ -16,9 +15,9 @@ export async function execBatch(lineClient) {
   try {
     timeStamps = await getDakoku(targetDate.year, targetDate.month, targetDate.day);
     console.log(`打刻 : ${timeStamps.start}-${timeStamps.end}`);
-  } catch (e) {
-    console.log(e.message);
-    console.log(e.stack);
+  } catch (err) {
+    console.log(err.message);
+    console.log(err.stack);
     return;
   }
 
@@ -28,9 +27,9 @@ export async function execBatch(lineClient) {
     return;
   }
 
-  // 15分単位で丸める
+  // 15分単位で切り上げる / 丸める
   const roundTimeStamps = {
-    start: roundDownTo15Min(timeStamps.start),
+    start: roundUpTo15Min(timeStamps.start),
     end: roundDownTo15Min(timeStamps.end),
   };
   console.log(`打刻(補正後) : ${roundTimeStamps.start}-${roundTimeStamps.end}`);
@@ -41,10 +40,18 @@ export async function execBatch(lineClient) {
     return;
   }
 
-  // TODO 時刻をdynamoに登録
+  // 時刻をdynamoに登録
+  putItemToDB(LINE_MY_USER_ID, {
+    year: targetDate.year,
+    month: targetDate.month,
+    day: targetDate.day,
+    startTime: roundTimeStamps.start,
+    endTime: roundTimeStamps.end
+  });
 
-  // // LINEへ通知
-  const pushText = `昨日(${targetDate.year}/${targetDate.month}/${targetDate.day})の打刻は${timeStamps.start}～${timeStamps.end}でした\n\n`
+  // LINEへ通知
+  const pushText = `昨日(${targetDate.year}/${targetDate.month}/${targetDate.day})の打刻は\n`
+    + `${timeStamps.start}～${timeStamps.end}でした\n\n`
     + `${roundTimeStamps.start}～${roundTimeStamps.end}で勤怠を登録しますか?`;
   console.log(`通知テキスト : ${pushText}`);
   await lineClient.pushMessage(LINE_MY_USER_ID, [{ type: "text", text: pushText },]);
@@ -60,7 +67,7 @@ function getYesterdayDate() {
   const jstYesterday = new Date(now.toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' }));
   jstYesterday.setDate(jstYesterday.getDate() - 1);
 
-  // 年月日を取り出してゼロ埋め（必要なら）
+  // 年月日を取り出す
   const date = {
     year: jstYesterday.getFullYear().toString(),
     month: (jstYesterday.getMonth() + 1).toString(), // 月は0ベースなので+1
@@ -79,6 +86,27 @@ function roundDownTo15Min(hhmm) {
   const roundedMin = Math.floor(min / 15) * 15;
   const roundedMinStr = roundedMin.toString().padStart(2, '0');
   const hourStr = hour.toString().padStart(2, '0');
+
+  return `${hourStr}${roundedMinStr}`;
+}
+
+// 時刻を15分単位で切り上げる
+function roundUpTo15Min(hhmm) {
+  if (!/^\d{4}$/.test(hhmm)) return ''; // フォーマットが不正なら空文字を返す
+
+  let hour = parseInt(hhmm.slice(0, 2), 10);
+  let min = parseInt(hhmm.slice(2, 4), 10);
+
+  // 切り上げ処理
+  let roundedMin = Math.ceil(min / 15) * 15;
+
+  if (roundedMin === 60) {
+    hour += 1;
+    roundedMin = 0;
+  }
+
+  const hourStr = hour.toString().padStart(2, '0');
+  const roundedMinStr = roundedMin.toString().padStart(2, '0');
 
   return `${hourStr}${roundedMinStr}`;
 }

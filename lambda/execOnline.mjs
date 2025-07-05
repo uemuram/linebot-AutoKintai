@@ -56,9 +56,9 @@ export async function execOnline(req, lineClient) {
   let replyFromAIStr;
   try {
     replyFromAIStr = await askGemini(prompt);
-  } catch (e) {
-    console.log(e.message);
-    console.log(e.stack);
+  } catch (err) {
+    console.log(err.message);
+    console.log(err.stack);
     await lineClient.replyMessage(replyToken, [{ type: "text", text: 'リクエストの解析で予期せぬエラーが発生しました' },]);
     return;
   }
@@ -71,9 +71,9 @@ export async function execOnline(req, lineClient) {
   console.log(replyFromAIStr);
   try {
     replyFromAIObj = JSON.parse(replyFromAIStr.replace(/```json|```/g, '').trim());
-  } catch (e) {
-    console.log(e.message);
-    console.log(e.stack);
+  } catch (err) {
+    console.log(err.message);
+    console.log(err.stack);
     await lineClient.replyMessage(replyToken, [{ type: "text", text: 'リクエストの解析で文法エラーが発生しました' },]);
     return;
   }
@@ -104,9 +104,9 @@ export async function execOnline(req, lineClient) {
   try {
     result = await registKintai(input.year, input.month, input.day, input.startTime, input.endTime);
     console.log(result);
-  } catch (e) {
-    console.log(e.message);
-    console.log(e.stack);
+  } catch (err) {
+    console.log(err.message);
+    console.log(err.stack);
     result = { success: false, msg: 'クロノスの操作で予期せぬエラーが発生しました' };
   }
 

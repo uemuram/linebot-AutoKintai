@@ -9,10 +9,7 @@ export async function putItemToDB(key, data) {
   console.log(`DB登録実行 : ${key} / ${JSON.stringify(data)}`);
   const command = new PutCommand({
     TableName: TABLE_NAME,
-    Item: {
-      userId: key,
-      data: data,
-    },
+    Item: { userId: key, data: data, },
   });
 
   try {
@@ -20,6 +17,22 @@ export async function putItemToDB(key, data) {
     console.log(`DB登録成功`);
   } catch (err) {
     console.error('DB登録エラー:', err);
+    throw err;
+  }
+}
+
+export async function deleteItemFromDB(key) {
+  console.log(`DB削除実行 : ${key}`);
+  const command = new DeleteCommand({
+    TableName: TABLE_NAME,
+    Key: { userId: key, },
+  });
+
+  try {
+    await client.send(command);
+    console.log(`DB削除成功`);
+  } catch (err) {
+    console.error('DB削除エラー:', err);
     throw err;
   }
 }
@@ -41,3 +54,5 @@ export async function getItemFromDB(key) {
     throw err;
   }
 }
+
+

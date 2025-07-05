@@ -1,16 +1,14 @@
 import { validateSignature } from "@line/bot-sdk";
 import { askGemini } from './geminiUtil.mjs';
 import { registKintai } from './chronusUtil.mjs';
+import { putItemToDB, deleteItemFromDB, getItemFromDB } from './dynamoDbUtil.mjs';
 
 const LINE_CHANNEL_SECRET = process.env.LINE_CHANNEL_SECRET;
 const LINE_MY_USER_ID = process.env.LINE_MY_USER_ID;
 
-// TODO Qiitaには、自分用のbotを作る、というスタンスにする
-// TODO dialogflowで何かできる? https://ledge.ai/articles/dialogflow-try-3
-
 export async function execOnline(req, lineClient) {
 
-  // 署名の検証（LINEからの接続であるか）
+  // 署名の検証（LINEからの接続か）
   const signature = req.headers["x-line-signature"];
   const bool = validateSignature(req.body, LINE_CHANNEL_SECRET, signature);
   if (!bool) throw new Error("invalid signature");

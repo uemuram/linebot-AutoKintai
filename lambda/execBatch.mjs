@@ -1,5 +1,5 @@
 import { getDakoku } from './chronusUtil.mjs';
-import { getItemFromDB, putItemToDB } from './dynamoDbUtil.mjs';
+import { putItemToDB, deleteItemFromDB, getItemFromDB } from './dynamoDbUtil.mjs';
 
 const LINE_MY_USER_ID = process.env.LINE_MY_USER_ID;
 

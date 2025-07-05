@@ -1,6 +1,8 @@
 import { Client } from "@line/bot-sdk";
 import { execOnline } from './execOnline.mjs';
+import { execBatch } from './execBatch.mjs';
 
+const LINE_CHANNEL_ACCESS_TOKEN = process.env.LINE_CHANNEL_ACCESS_TOKEN;
 const LINE_CHANNEL_SECRET = process.env.LINE_CHANNEL_SECRET;
 const MODE = process.env.MODE;
 
@@ -10,16 +12,17 @@ const MODE = process.env.MODE;
 export const handler = async (req) => {
 
   const lineClient = new Client({
-    channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
+    channelAccessToken: LINE_CHANNEL_ACCESS_TOKEN,
     channelSecret: LINE_CHANNEL_SECRET,
   });
 
   if (MODE == "batch") {
     console.log("処理開始(バッチモード)");
+    const result = await execBatch(lineClient);
     return;
   } else {
     console.log("処理開始(オンラインモード)");
-    result = await execOnline(req, lineClient);
+    const result = await execOnline(req, lineClient);
     return { statusCode: 200 };
   }
 

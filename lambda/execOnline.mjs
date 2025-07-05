@@ -112,7 +112,7 @@ export async function execOnline(req, lineClient) {
 
   // LINEへ返信
   const replyText = result.success ? "勤怠を登録しました" : `勤怠登録でエラーが発生しました。エラーメッセージ:${result.msg}`;
-  await lineClient.pushMessage(userId, [{ type: "text", text: replyText },]);
+  await lineClient.pushMessage(LINE_MY_USER_ID, [{ type: "text", text: replyText },]);
 
   return;
 }

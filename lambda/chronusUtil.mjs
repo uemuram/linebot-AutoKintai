@@ -51,6 +51,40 @@ export async function registKintai(year, month, day, startTime, endTime) {
     }
 }
 
+// 打刻を取得する
+export async function getDakoku(year, month, day) {
+    const browser = await puppeteer.launch({
+        args: chromium.args,
+        defaultViewport: chromium.defaultViewport,
+        executablePath: await chromium.executablePath(),
+        headless: chromium.headless,
+    });
+    try {
+        console.log('----------- ページオープン 開始 -----------');
+        const page = await browser.newPage();
+        await page.goto(`${CHRONUS_BASE_URL}/Lysithea/JSP_Files/authentication/WC010_1.jsp?COMPANY_CODE=100`);
+
+        console.log('----------- ログイン 開始 -----------');
+        const menuFrame = await login(page);
+        if (!menuFrame) throw new Error('クロノスのログインに失敗しました');
+
+        console.log('----------- 日付けクリック 開始 -----------');
+        await resetPJCode(menuFrame);
+        const operationFrame = await clickDate(menuFrame, page, year, month, day);
+        if (!operationFrame) throw new Error('日付けリンクのクリックに失敗しました');
+
+        console.log('----------- 打刻取得 開始 -----------');
+        const timeStamps = await getTimeStamps(operationFrame);
+        console.log(`開始打刻 : ${timeStamps.start} / 終了打刻 : ${timeStamps.end}`);
+        return timeStamps;
+    } catch (err) {
+        console.error(err.message);
+        return { success: false, msg: err.message };
+    } finally {
+        await browser.close();
+    }
+}
+
 // ログインしてMENUフレームを返す
 async function login(page) {
     await page.type('input[name="PersonCode"]', CHRONUS_PERSON_CODE);
@@ -61,7 +95,16 @@ async function login(page) {
         page.click('a[onclick="doLabel(\'LOGON\');return false;"]'),
     ]);
 
-    return getFrameByName(page, 'MENU');
+    const menuFrame = await getFrameByName(page, 'MENU');
+
+    if (menuFrame) {
+        const html = await menuFrame.content();
+        console.log('MENU frame HTML:', html);
+    } else {
+        console.warn('MENU frame not found');
+    }
+
+    return menuFrame;
 }
 
 // PJコードチェックを外す
@@ -86,8 +129,35 @@ async function clickDate(menuFrame, page, year, month, day) {
         return title?.textContent.trim() === '勤休内容登録';
     }, { timeout: 5000 });
 
-    return getFrameByName(page, 'OPERATION');
+    const operationFrame = await getFrameByName(page, 'OPERATION');
+
+    if (operationFrame) {
+        const html = await operationFrame.content();
+        console.log('OPERATION frame HTML:', html);
+    } else {
+        console.warn('OPERATION frame not found');
+    }
+
+    return operationFrame;
 }
+
+// 打刻を取得する処理
+async function getTimeStamps(operationFrame) {
+    if (!operationFrame) {
+        return { start: '', end: '' };
+    }
+
+    // StartTimeStamp の値を取得
+    const startInput = await operationFrame.$('input[name="StartTimeStamp"]');
+    const start = startInput ? (await operationFrame.evaluate(el => el.value || '', startInput)) : '';
+
+    // EndTimeStamp の値を取得
+    const endInput = await operationFrame.$('input[name="EndTimeStamp"]');
+    const end = endInput ? (await operationFrame.evaluate(el => el.value || '', endInput)) : '';
+
+    return { start: start, end: end };
+}
+
 
 // 工数入力・打刻入力処理
 async function inputWorkDetails(frame, start, end, pjCodeInfo) {

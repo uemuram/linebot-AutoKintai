@@ -8,20 +8,28 @@ export async function execBatch() {
 
   // 昨日の日付を取得
   const targetDate = getYesterdayDate();
+  //const targetDate = { year: '2025', month: '7', day: '4', };
   console.log(`対象日付 : ${targetDate.year}/${targetDate.month}/${targetDate.day}`);
 
   // クロノスから打刻を取得する
-  let timeStamps;
+  let result;
   try {
-    timeStamps = await getDakoku(targetDate.year, targetDate.month, targetDate.day);
-    console.log(`打刻 : ${timeStamps.start}-${timeStamps.end}`);
+    result = await getDakoku(targetDate.year, targetDate.month, targetDate.day);
   } catch (err) {
     console.log(err.message);
     console.log(err.stack);
     return;
   }
 
+  // エラーであれば終了
+  if (!result.success) {
+    console.log('クロノスの操作でエラーが発生したため終了');
+    return;
+  }
+
   // どちらか一方でも取得できない場合は何もせず終了
+  const timeStamps = result.timeStamps;
+  console.log(`打刻 : ${timeStamps.start}-${timeStamps.end}`);
   if (!timeStamps.start || !timeStamps.end) {
     console.log('打刻情報が取得できないため終了');
     return;

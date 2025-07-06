@@ -76,11 +76,13 @@ export async function getDakoku(year, month, day) {
         await resetPJCode(menuFrame);
         const operationFrame = await clickDate(menuFrame, page, year, month, day);
         if (!operationFrame) throw new Error('日付けリンクのクリックに失敗しました');
+        const html = await operationFrame.content();
+        if (html.includes('△')) throw new Error('すでに実績を登録済みです');
 
         console.log('----------- 打刻取得 開始 -----------');
         const timeStamps = await getTimeStamps(operationFrame);
         console.log(`開始打刻 : ${timeStamps.start} / 終了打刻 : ${timeStamps.end}`);
-        return timeStamps;
+        return { success: true, timeStamps: timeStamps };
     } catch (err) {
         console.error(err.message);
         return { success: false, msg: err.message };

@@ -128,6 +128,7 @@ export async function execOnline(req) {
     return;
   }
 
+  // TODO c1とc2の判定はAIにさせないほうがいいのかも(よく間違えられるので、AIの負荷を下げる意味でも)
   // type=c1(登録日時が今回で確定)場合は、登録日時を宣言した上で登録実施
   else if (replyFromAIObj.type == 'c1') {
 
@@ -171,6 +172,7 @@ export async function execOnline(req) {
     // 勤怠登録
     let result;
     try {
+      // TODO registKintaiでエラーになった場合はDBをクリア(2か所ある)
       result = await registKintai(replyFromAIObj.date, roundTimes.startTime, roundTimes.endTime);
       console.log(result);
     } catch (err) {
@@ -194,6 +196,7 @@ export async function execOnline(req) {
     // 勤怠登録
     let result;
     try {
+      // TODO registKintaiでエラーになった場合はDBをクリア(2か所ある)
       result = await registKintai(preRegistDateTime.date, preRegistDateTime.startTime, preRegistDateTime.endTime);
       console.log(result);
     } catch (err) {
@@ -213,6 +216,10 @@ export async function execOnline(req) {
   else if (preRegistDateTimeType == 3 && replyFromAIObj.type == 'a') {
     // ローディング表示
     await showLoadingAnimation(LINE_MY_USER_ID);
+
+    // TODO 9時より前にここに入ろうとすると、勤務時間が9:00～6:00とかになって後続でおかしくなる。dynamoにも不整合な値が残る
+    // 整合性チェック用の共通関数を作るとか…(どこに入れる? dynamo登録の直前?r)
+    // 再現手順:DBが空の状態で「クロノス入れて」と打つ
 
     // 今日の9時～現在時刻を開始時刻とする
     const endTime = roundDownTo15Min(getCurrentTimeHHMM());

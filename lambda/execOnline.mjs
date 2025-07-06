@@ -31,6 +31,18 @@ export async function execOnline(req, lineClient) {
     return;
   }
 
+  // 現在の日付データを取得しておく
+  let preRegistDateTime;
+  try {
+    preRegistDateTime = await getItemFromDB(LINE_MY_USER_ID);
+  } catch (err) {
+    await lineClient.replyMessage(replyToken, [{ type: "text", text: 'DBアクセスでエラーが発生しました' },]);
+    return;
+  }
+
+  // 日付時刻がどの程度決まっているかを確認
+  const preRegistDateTimeType = getPreRegistDateTimeType(preRegistDateTime);
+
   // 生成AI向けメッセージを組み立て
   const messageText = body.events[0].message.text;
   const prompt = `これから渡すメッセージに対して、以下のルールでjsonフォーマットで応答を返してください`
@@ -98,21 +110,45 @@ export async function execOnline(req, lineClient) {
   await lineClient.replyMessage(replyToken, [{ type: "text", text: readyMessage },]);
 
   // クロノスに勤怠を登録する
-  let result;
-  try {
-    result = await registKintai(input.year, input.month, input.day, input.startTime, input.endTime);
-    console.log(result);
-  } catch (err) {
-    console.log(err.message);
-    console.log(err.stack);
-    result = { success: false, msg: 'クロノスの操作で予期せぬエラーが発生しました' };
-  }
+  // let result;
+  // try {
+  //   result = await registKintai(input.year, input.month, input.day, input.startTime, input.endTime);
+  //   console.log(result);
+  // } catch (err) {
+  //   console.log(err.message);
+  //   console.log(err.stack);
+  //   result = { success: false, msg: 'クロノスの操作で予期せぬエラーが発生しました' };
+  // }
+  let result = { success: true };
+  // TODO クロノス登録を有効化
 
   // LINEへ返信
-  const replyText = result.success ? "勤怠を登録しました" : result.msg;
-  await lineClient.pushMessage(LINE_MY_USER_ID, [{ type: "text", text: replyText },]);
+  const pushText = result.success ? "勤怠を登録しました" : result.msg;
+  console.log(`プッシュメッセージ:${pushText}`);
+  // TODO プッシュを有効化
+  // await lineClient.pushMessage(LINE_MY_USER_ID, [{ type: "text", text: pushText },]);
 
   return;
+}
+
+// オブジェクトのタイプ判定
+// null、{} -> 1
+// { date: "20250703", startTime: "", endTime: null } -> 2
+// { date: "20250703", startTime: "0900", endTime: "1915" } -> 3
+function getPreRegistDateTimeType(input) {
+  // null または 空文字 の場合
+  if (input === null || input === '' || typeof input !== 'inputect') return 1;
+
+  // 空オブジェクトチェック
+  if (inputect.keys(input).length === 0) return 1;
+
+  // 各項目の存在確認（null/undefined/空文字を含む）
+  const keys = ['date', 'startTime', 'endTime'];
+  const filledCount = keys.filter(k => input[k] !== undefined && input[k] !== null && input[k] !== '').length;
+
+  if (filledCount === 3) return 3;
+  if (filledCount >= 1) return 2;
+  return 1;
 }
 
 // インプット情報を調整して返す

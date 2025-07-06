@@ -42,6 +42,7 @@ export async function getItemFromDB(key) {
   const command = new GetCommand({
     TableName: TABLE_NAME,
     Key: { userId: key },
+    ConsistentRead: true,
   });
 
   try {

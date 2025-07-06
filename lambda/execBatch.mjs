@@ -6,8 +6,9 @@ const LINE_MY_USER_ID = process.env.LINE_MY_USER_ID;
 export async function execBatch(lineClient) {
 
   // 昨日の日付を取得
-  const targetDate = getYesterdayDate();
-  // const date = { year: '2025', month: '7', day: '4', };
+  // TODO 元に戻す
+  // const targetDate = getYesterdayDate();
+  const targetDate = { year: '2025', month: '7', day: '3', };
   console.log(`対象日付 : ${targetDate.year}/${targetDate.month}/${targetDate.day}`);
 
   // クロノスから打刻を取得する
@@ -41,10 +42,8 @@ export async function execBatch(lineClient) {
   }
 
   // 時刻をdynamoに登録
-  putItemToDB(LINE_MY_USER_ID, {
-    year: targetDate.year,
-    month: targetDate.month,
-    day: targetDate.day,
+  await putItemToDB(LINE_MY_USER_ID, {
+    date: `${targetDate.year}${targetDate.month.padStart(2, '0')}${targetDate.day.padStart(2, '0')}`,
     startTime: roundTimeStamps.start,
     endTime: roundTimeStamps.end
   });
@@ -54,7 +53,8 @@ export async function execBatch(lineClient) {
     + `${timeStamps.start}～${timeStamps.end}でした\n\n`
     + `${roundTimeStamps.start}～${roundTimeStamps.end}で勤怠を登録しますか?`;
   console.log(`通知テキスト : ${pushText}`);
-  await lineClient.pushMessage(LINE_MY_USER_ID, [{ type: "text", text: pushText },]);
+  // TODO 元に戻す
+  // await lineClient.pushMessage(LINE_MY_USER_ID, [{ type: "text", text: pushText },]);
 
   return;
 }

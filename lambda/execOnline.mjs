@@ -181,7 +181,7 @@ export async function execOnline(req) {
     }
 
     // 完了通知
-    await pushMessage(LINE_MY_USER_ID, '登録が完了しました');
+    await pushMessage(LINE_MY_USER_ID, result.success ? "登録が完了しました" : result.msg);
     await deleteItemFromDB(LINE_MY_USER_ID);
     return;
   }
@@ -204,7 +204,7 @@ export async function execOnline(req) {
     }
 
     // 完了通知
-    await replyMessage(replyToken, '登録が完了しました');
+    await replyMessage(replyToken, result.success ? "登録が完了しました" : result.msg);
     await deleteItemFromDB(LINE_MY_USER_ID);
     return;
   }

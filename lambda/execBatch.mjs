@@ -1,9 +1,10 @@
 import { getDakoku, roundDownTo15Min, roundUpTo15Min } from './chronusUtil.mjs';
 import { putItemToDB, deleteItemFromDB, getItemFromDB } from './dynamoDbUtil.mjs';
+import { pushMessage } from './lineUtil.mjs';
 
 const LINE_MY_USER_ID = process.env.LINE_MY_USER_ID;
 
-export async function execBatch(lineClient) {
+export async function execBatch() {
 
   // 昨日の日付を取得
   // TODO 元に戻す
@@ -52,9 +53,8 @@ export async function execBatch(lineClient) {
   const pushText = `昨日(${targetDate.year}/${targetDate.month}/${targetDate.day})の打刻は\n`
     + `${timeStamps.start}～${timeStamps.end}でした\n\n`
     + `${roundTimeStamps.start}～${roundTimeStamps.end}で勤怠を登録しますか?`;
-  console.log(`通知テキスト : ${pushText}`);
   // TODO 元に戻す
-  // await lineClient.pushMessage(LINE_MY_USER_ID, [{ type: "text", text: pushText },]);
+  // await pushMessage(LINE_MY_USER_ID, pushText);
 
   return;
 }

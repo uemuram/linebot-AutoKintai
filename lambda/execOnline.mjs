@@ -2,12 +2,13 @@ import { validateSignature } from "@line/bot-sdk";
 import { askGemini } from './geminiUtil.mjs';
 import { registKintai, roundDownTo15Min, roundUpTo15Min } from './chronusUtil.mjs';
 import { putItemToDB, deleteItemFromDB, getItemFromDB } from './dynamoDbUtil.mjs';
+import { replyMessage, pushMessage } from './lineUtil.mjs';
 import fs from 'fs/promises';
 
 const LINE_CHANNEL_SECRET = process.env.LINE_CHANNEL_SECRET;
 const LINE_MY_USER_ID = process.env.LINE_MY_USER_ID;
 
-export async function execOnline(req, lineClient) {
+export async function execOnline(req) {
 
   // 署名の検証（LINEからの接続か）
   const signature = req.headers["x-line-signature"];
@@ -37,7 +38,7 @@ export async function execOnline(req, lineClient) {
   try {
     preRegistDateTime = await getItemFromDB(LINE_MY_USER_ID);
   } catch (err) {
-    await lineClient.replyMessage(replyToken, [{ type: "text", text: 'DBアクセスでエラーが発生しました' },]);
+    await replyMessage(replyToken, 'DBアクセスでエラーが発生しました');
     return;
   }
 
@@ -77,7 +78,7 @@ export async function execOnline(req, lineClient) {
   } catch (err) {
     console.log(err.message);
     console.log(err.stack);
-    await lineClient.replyMessage(replyToken, [{ type: "text", text: 'リクエストの解析で予期せぬエラーが発生しました' },]);
+    await replyMessage(replyToken, 'リクエストの解析で予期せぬエラーが発生しました');
     return;
   }
   // replyFromAIStr = '```json { "type": 1, "date": "", "startTime": "", "endTime": "", "res": "" }  ```';
@@ -92,21 +93,21 @@ export async function execOnline(req, lineClient) {
   } catch (err) {
     console.log(err.message);
     console.log(err.stack);
-    await lineClient.replyMessage(replyToken, [{ type: "text", text: 'リクエストの解析で文法エラーが発生しました' },]);
+    await replyMessage(replyToken, 'リクエストの解析で文法エラーが発生しました');
     return;
   }
   console.log(replyFromAIObj);
 
   // type=d(その他のメッセージ) の場合はそのまま返却して終了。状態はリセット
   if (replyFromAIObj.type == 'd') {
-    await lineClient.replyMessage(replyToken, [{ type: "text", text: replyFromAIObj.res },]);
+    await replyMessage(replyToken, replyFromAIObj.res);
     await deleteItemFromDB(LINE_MY_USER_ID);
     return;
   }
 
   // type=b(否定、拒否) の場合は了解した旨を返却して終了。状態はリセット
   if (replyFromAIObj.type == 'b') {
-    await lineClient.replyMessage(replyToken, [{ type: "text", text: "了解しました" },]);
+    await replyMessage(replyToken, '了解しました');
     await deleteItemFromDB(LINE_MY_USER_ID);
     return;
   }
@@ -119,13 +120,13 @@ export async function execOnline(req, lineClient) {
 
   // 日付けが不正だった場合はエラーを返す
   if (!input.success) {
-    await lineClient.replyMessage(replyToken, [{ type: "text", text: '勤怠日付時刻を正しく計算できませんでした' },]);
+    await replyMessage(replyToken, '勤怠日付時刻を正しく計算できませんでした');
     return;
   }
 
   // 勤怠計算前に一旦通知する
   const readyMessage = `${input.year}/${input.month}/${input.day}  ${input.startTime}～${input.endTime}で勤怠を登録します`;
-  await lineClient.replyMessage(replyToken, [{ type: "text", text: readyMessage },]);
+  await replyMessage(replyToken, readyMessage);
 
   // クロノスに勤怠を登録する
   // let result;
@@ -144,7 +145,8 @@ export async function execOnline(req, lineClient) {
   const pushText = result.success ? "勤怠を登録しました" : result.msg;
   console.log(`プッシュメッセージ:${pushText}`);
   // TODO プッシュを有効化
-  // await lineClient.pushMessage(LINE_MY_USER_ID, [{ type: "text", text: pushText },]);
+  // await pushMessage(LINE_MY_USER_ID, pushText);
+
 
   return;
 }

@@ -56,7 +56,7 @@ export async function execOnline(req) {
       promptStr = await renderTemplate('./prompt/prompt1.txt',
         {
           messageText: messageText, today: getTodayString(),
-          date: preRegistDateTime.date, startTime: preRegistDateTime.startTime, endTime: preRegistDateTime.endTime
+          kintaiInfo: formatKintaiInfo(preRegistDateTime.date, preRegistDateTime.startTime, preRegistDateTime.endTime)
         });
       break;
     case 2:
@@ -64,7 +64,7 @@ export async function execOnline(req) {
       promptStr = await renderTemplate('./prompt/prompt2.txt',
         {
           messageText: messageText, today: getTodayString(),
-          date: preRegistDateTime.date, startTime: preRegistDateTime.startTime, endTime: preRegistDateTime.endTime
+          kintaiInfo: formatKintaiInfo(preRegistDateTime.date, preRegistDateTime.startTime, preRegistDateTime.endTime)
         });
       break;
     case 3:
@@ -130,6 +130,21 @@ export async function execOnline(req) {
 
   // type=c1(登録日時が今回で確定)場合は、登録日時を宣言した上で登録実施
   else if (replyFromAIObj.type == 'c1') {
+
+    // もし空の要素があった場合
+    // (c1の場合は空にならないはずだが、AIがおかしい応答を返した場合の保険として処理に追加)
+    if (!replyFromAIObj.date || !replyFromAIObj.startTime || !replyFromAIObj.endTime) {
+      await replyMessage(replyToken, '勤務日時を指定してください');
+
+      // 分かっている情報は保存しておく
+      await putItemToDB(LINE_MY_USER_ID, {
+        date: replyFromAIObj.date,
+        startTime: replyFromAIObj.startTime,
+        endTime: replyFromAIObj.endTime
+      });
+      return;
+    }
+
     // 登録時刻を15分単位で切り上げる / 丸める
     const roundTimes = {
       startTime: roundUpTo15Min(replyFromAIObj.startTime),
@@ -137,8 +152,8 @@ export async function execOnline(req) {
     };
     console.log(`登録時刻(補正後) : ${roundTimes.startTime}-${roundTimes.endTime}`);
 
-    // 同じ(労働時間=0)なら終了
-    if (roundTimes.startTime == roundTimes.endTime) {
+    // 時刻の整合性がとれていない(開始と終了が同じ or 終了の方が手前)ならエラー
+    if (roundTimes.startTime === roundTimes.endTime || parseInt(roundTimes.endTime, 10) < parseInt(roundTimes.startTime, 10)) {
       await replyMessage(replyToken, '労働時間の計算でエラーが発生しました');
       return;
     }
@@ -272,6 +287,19 @@ function getCurrentTimeHHMM() {
   return `${hour}${minutes}`;
 }
 
+// YYYYMMDD形式を、YYYY/MM/DD形式(ただしゼロ埋めはしない)に変換する
+function formatDateToSlashed(dateStr) {
+  if (!/^\d{8}$/.test(dateStr)) {
+    throw new Error('日付は8桁のYYYYMMDD形式で入力してください');
+  }
+
+  const year = dateStr.slice(0, 4);
+  const month = String(parseInt(dateStr.slice(4, 6), 10)); // 例: "07" → 7 → "7"
+  const day = String(parseInt(dateStr.slice(6, 8), 10));   // 例: "05" → 5 → "5"
+
+  return `${year}/${month}/${day}`;
+}
+
 // テンプレートファイルを読み込む
 async function renderTemplate(filePath, values) {
   try {
@@ -287,4 +315,39 @@ async function renderTemplate(filePath, values) {
     console.error('テンプレート処理エラー:', err);
     throw err;
   }
+}
+
+// 勤怠情報を整形する 以下は例
+// formatKintaiInfo("20250705", "0715", "1900"));
+//    → "日付:2025/7/5、勤務開始時刻:7時15分、勤務終了時刻:19時0分"
+// console.log(formatKintaiInfo("20250705", "0715", ""));
+//    → "日付:2025/7/5、勤務開始時刻:7時15分"
+// console.log(formatKintaiInfo("", "0715", ""));
+//    → "勤務開始時刻:7時15分"
+function formatKintaiInfo(date, startTime, endTime) {
+  const parts = [];
+
+  // 日付: YYYYMMDD → YYYY/M/D（ゼロ埋めなし）
+  if (date && /^\d{8}$/.test(date)) {
+    const year = date.slice(0, 4);
+    const month = String(parseInt(date.slice(4, 6), 10));
+    const day = String(parseInt(date.slice(6, 8), 10));
+    parts.push(`日付:${year}/${month}/${day}`);
+  }
+
+  // 勤務開始時刻: HHMM → H時M分（ゼロ埋めなし）
+  if (startTime && /^\d{4}$/.test(startTime)) {
+    const hour = String(parseInt(startTime.slice(0, 2), 10));
+    const minute = String(parseInt(startTime.slice(2, 4), 10));
+    parts.push(`勤務開始時刻:${hour}時${minute}分`);
+  }
+
+  // 勤務終了時刻: HHMM → H時M分（ゼロ埋めなし）
+  if (endTime && /^\d{4}$/.test(endTime)) {
+    const hour = String(parseInt(endTime.slice(0, 2), 10));
+    const minute = String(parseInt(endTime.slice(2, 4), 10));
+    parts.push(`勤務終了時刻:${hour}時${minute}分`);
+  }
+
+  return parts.join('、');
 }

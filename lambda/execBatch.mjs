@@ -7,9 +7,7 @@ const LINE_MY_USER_ID = process.env.LINE_MY_USER_ID;
 export async function execBatch() {
 
   // 昨日の日付を取得
-  // TODO 元に戻す
-  // const targetDate = getYesterdayDate();
-  const targetDate = { year: '2025', month: '7', day: '3', };
+  const targetDate = getYesterdayDate();
   console.log(`対象日付 : ${targetDate.year}/${targetDate.month}/${targetDate.day}`);
 
   // クロノスから打刻を取得する

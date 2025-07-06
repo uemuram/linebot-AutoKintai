@@ -33,6 +33,9 @@ export async function execOnline(req) {
     return;
   }
 
+  // とりあえずローディングする
+  await showLoadingAnimation(LINE_MY_USER_ID);
+
   // 現在の日付データを取得しておく
   let preRegistDateTime;
   try {
@@ -128,10 +131,54 @@ export async function execOnline(req) {
     return;
   }
 
-  // 登録候補日時が全て埋まっており、type=a(同意) の場合、即座に登録。状態はリセット
+  // type=c1(登録日時が今回で確定)場合は、登録日時を宣言した上で登録実施
+  if (replyFromAIObj.type == 'c1') {
+    // 登録時刻を15分単位で切り上げる / 丸める
+    const roundTimes = {
+      startTime: roundUpTo15Min(replyFromAIObj.startTime),
+      endTime: roundDownTo15Min(replyFromAIObj.endTime),
+    };
+    console.log(`登録時刻(補正後) : ${roundTimes.startTime}-${roundTimes.endTime}`);
+
+    // 同じ(労働時間=0)なら終了
+    if (roundTimes.startTime == roundTimes.endTime) {
+      await replyMessage(replyToken, '労働時間の計算でエラーが発生しました');
+      return;
+    }
+
+    // 登録時刻を通知する
+    const year = replyFromAIObj.date.slice(0, 4);
+    const month = String(parseInt(replyFromAIObj.date.slice(4, 6), 10)); // ゼロ除去
+    const day = String(parseInt(replyFromAIObj.date.slice(6, 8), 10));   // ゼロ除去
+    const readyMessage = `${year}/${month}/${day}  ${roundTimes.startTime}～${roundTimes.endTime}で勤怠を登録します`;
+    await replyMessage(replyToken, readyMessage);
+
+    // ローディング表示
+    await showLoadingAnimation(LINE_MY_USER_ID);
+
+    // 勤怠登録
+    let result;
+    try {
+      result = await registKintai(replyFromAIObj.date, roundTimes.startTime, roundTimes.endTime);
+      console.log(result);
+    } catch (err) {
+      console.log(err.message);
+      console.log(err.stack);
+      await pushMessage(LINE_MY_USER_ID, 'クロノスの操作で予期せぬエラーが発生しました')
+      return;
+    }
+
+    // 完了通知
+    await pushMessage(LINE_MY_USER_ID, '登録が完了しました');
+    await deleteItemFromDB(LINE_MY_USER_ID);
+    return;
+  }
+
+  // 登録候補日時があらかじめ全て埋まっており、type=a(同意) の場合、即座に登録。状態はリセット
   if (preRegistDateTimeType == 1 && replyFromAIObj.type == 'a') {
     // ローディング表示
     await showLoadingAnimation(LINE_MY_USER_ID);
+
     // 勤怠登録
     let result;
     try {
@@ -143,12 +190,12 @@ export async function execOnline(req) {
       await replyMessage(replyToken, 'クロノスの操作で予期せぬエラーが発生しました');
       return;
     }
-    // 通知
+
+    // 完了通知
     await replyMessage(replyToken, '登録が完了しました');
     await deleteItemFromDB(LINE_MY_USER_ID);
     return;
   }
-
 
   return;
 

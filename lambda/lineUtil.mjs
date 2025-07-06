@@ -33,6 +33,6 @@ export async function showLoadingAnimation(userId) {
   console.log(`ローディングアニメーション表示`);
   await lineClient.showLoadingAnimation({
     chatId: userId,
-    loadingSeconds: 60
+    loadingSeconds: 30
   });
 }

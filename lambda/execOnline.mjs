@@ -1,7 +1,8 @@
 import { validateSignature } from "@line/bot-sdk";
 import { askGemini } from './geminiUtil.mjs';
-import { registKintai } from './chronusUtil.mjs';
+import { registKintai, roundDownTo15Min, roundUpTo15Min } from './chronusUtil.mjs';
 import { putItemToDB, deleteItemFromDB, getItemFromDB } from './dynamoDbUtil.mjs';
+import fs from 'fs/promises';
 
 const LINE_CHANNEL_SECRET = process.env.LINE_CHANNEL_SECRET;
 const LINE_MY_USER_ID = process.env.LINE_MY_USER_ID;
@@ -40,32 +41,39 @@ export async function execOnline(req, lineClient) {
     return;
   }
 
-  // 日付時刻がどの程度決まっているかを確認
+  // 日付時刻がどの程度決まっているかを確認し、プロンプトを生成
   const preRegistDateTimeType = getPreRegistDateTimeType(preRegistDateTime);
-
-  // 生成AI向けメッセージを組み立て
   const messageText = body.events[0].message.text;
-  const prompt = `これから渡すメッセージに対して、以下のルールでjsonフォーマットで応答を返してください`
-    + `・メッセージは、「同意、依頼、単純指示の文言」(はい、よろしく、入れて、つけて、お願いします、等)または「勤怠システムへの入力依頼や勤怠時刻の指定」である可能性があります`
-    + `・勤怠システムの名前は「クロノス(chronus)」です`
-    + `・メッセージが「同意、依頼、単純指示の文言」である場合は、type=1としてください`
-    + `・メッセージが「勤怠システムへの入力依頼や勤怠時刻の指定」である場合は、type=2としてください`
-    + `・メッセージが上記どちらでもない場合は、type=3としてください`
-    + `・type=1の場合は、date、startTime、endTimeを空文字としてください`
-    + `・type=2の場合は、dateをメッセージから読み取れる勤務日付、startTimeをメッセージから読み取れる勤務開始時刻、endTimeをメッセージから読み取れる勤務開始時刻としてください。指定がない項目はそれぞれ空文字にしてください`
-    + `・type=3の場合は、resをメッセージに対する自然な返答(ただし質問文ではない)としてください`
-    + `・今日の日付は${getTodayString()}です`
-    + `・応答のフォーマット(JSON)は{type:数字型、date:文字列型(yyyymmdd形式)、startTime:文字列型(24時間のhhmm形式)、endTime:文字列型(24時間のhhmm形式)、res:文字列型}としてください`
-    + `・メッセージは「${messageText}」です`;
-  console.log(prompt);
-  // TODO 「上記以外の指示」の場合は、その機能はありません、という応答を返す
-  // TODO プロンプト生成は別ソースにして状態によって異なるプロンプトにするのがいいかも
-
+  console.log(`preRegistDateTimeType : ${preRegistDateTimeType}`);
+  let promptStr = '';
+  switch (preRegistDateTimeType) {
+    case 1:
+      promptStr = await renderTemplate('./prompt/prompt1.txt',
+        {
+          messageText: messageText, today: getTodayString(),
+          date: preRegistDateTime.date, startTime: preRegistDateTime.startTime, endTime: preRegistDateTime.endTime
+        });
+      break;
+    case 2:
+      promptStr = await renderTemplate('./prompt/prompt2.txt',
+        {
+          messageText: messageText, today: getTodayString(),
+          date: preRegistDateTime.date, startTime: preRegistDateTime.startTime, endTime: preRegistDateTime.endTime
+        });
+      break;
+    case 3:
+      promptStr = await renderTemplate('./prompt/prompt3.txt',
+        { messageText: messageText, today: getTodayString(), });
+      break;
+    default:
+      break;
+  }
+  console.log(`プロンプト : ${promptStr}`)
 
   // Geminiに要求メッセージ解析をリクエスト
   let replyFromAIStr;
   try {
-    replyFromAIStr = await askGemini(prompt);
+    replyFromAIStr = await askGemini(promptStr);
   } catch (err) {
     console.log(err.message);
     console.log(err.stack);
@@ -89,11 +97,21 @@ export async function execOnline(req, lineClient) {
   }
   console.log(replyFromAIObj);
 
-  // type=3 の場合はそのまま返却して終了
-  if (replyFromAIObj.type != 1 && replyFromAIObj.type != 2) {
+  // type=d(その他のメッセージ) の場合はそのまま返却して終了。状態はリセット
+  if (replyFromAIObj.type == 'd') {
     await lineClient.replyMessage(replyToken, [{ type: "text", text: replyFromAIObj.res },]);
+    await deleteItemFromDB(LINE_MY_USER_ID);
     return;
   }
+
+  // type=b(否定、拒否) の場合は了解した旨を返却して終了。状態はリセット
+  if (replyFromAIObj.type == 'b') {
+    await lineClient.replyMessage(replyToken, [{ type: "text", text: "了解しました" },]);
+    await deleteItemFromDB(LINE_MY_USER_ID);
+    return;
+  }
+
+  return;
 
   // 入力から日付けを調整
   const input = adjustInput(replyFromAIObj);
@@ -132,23 +150,23 @@ export async function execOnline(req, lineClient) {
 }
 
 // オブジェクトのタイプ判定
-// null、{} -> 1
+// { date: "20250703", startTime: "0900", endTime: "1915" } -> 1
 // { date: "20250703", startTime: "", endTime: null } -> 2
-// { date: "20250703", startTime: "0900", endTime: "1915" } -> 3
+// null、{} -> 3
 function getPreRegistDateTimeType(input) {
   // null または 空文字 の場合
-  if (input === null || input === '' || typeof input !== 'inputect') return 1;
+  if (input === null || input === '' || typeof input !== 'object') return 3;
 
   // 空オブジェクトチェック
-  if (inputect.keys(input).length === 0) return 1;
+  if (Object.keys(input).length === 0) return 3;
 
   // 各項目の存在確認（null/undefined/空文字を含む）
   const keys = ['date', 'startTime', 'endTime'];
   const filledCount = keys.filter(k => input[k] !== undefined && input[k] !== null && input[k] !== '').length;
 
-  if (filledCount === 3) return 3;
+  if (filledCount === 3) return 1;
   if (filledCount >= 1) return 2;
-  return 1;
+  return 3;
 }
 
 // インプット情報を調整して返す
@@ -254,7 +272,6 @@ function adjustInput(input) {
   return result;
 }
 
-
 // 今日の日付をyyyy/mm/dd形式で返す
 function getTodayString() {
   const now = new Date();
@@ -269,4 +286,21 @@ function getTodayString() {
 
   // yyyy/mm/dd 形式の文字列を作成
   return `${year}/${month}/${day}`;
+}
+
+// テンプレートファイルを読み込む
+async function renderTemplate(filePath, values) {
+  try {
+    // テンプレートファイル読み込み
+    const template = await fs.readFile(filePath, 'utf-8');
+
+    // テンプレート文字列を関数として評価
+    const compiled = new Function(...Object.keys(values), `return \`${template}\`;`);
+
+    // 関数を実行して変数を埋め込む
+    return compiled(...Object.values(values));
+  } catch (err) {
+    console.error('テンプレート処理エラー:', err);
+    throw err;
+  }
 }

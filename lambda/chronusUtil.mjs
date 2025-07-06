@@ -286,3 +286,38 @@ function allocateWorkingTime(workingTime, projectInfo) {
         workingTime: toHHMM(p.allocatedMinutes)
     }));
 }
+
+// 時刻を15分単位で丸める
+export function roundDownTo15Min(hhmm) {
+  if (!/^\d{4}$/.test(hhmm)) return ''; // フォーマットが不正なら空文字を返す
+
+  const hour = parseInt(hhmm.slice(0, 2), 10);
+  const min = parseInt(hhmm.slice(2, 4), 10);
+
+  const roundedMin = Math.floor(min / 15) * 15;
+  const roundedMinStr = roundedMin.toString().padStart(2, '0');
+  const hourStr = hour.toString().padStart(2, '0');
+
+  return `${hourStr}${roundedMinStr}`;
+}
+
+// 時刻を15分単位で切り上げる
+export function roundUpTo15Min(hhmm) {
+  if (!/^\d{4}$/.test(hhmm)) return ''; // フォーマットが不正なら空文字を返す
+
+  let hour = parseInt(hhmm.slice(0, 2), 10);
+  let min = parseInt(hhmm.slice(2, 4), 10);
+
+  // 切り上げ処理
+  let roundedMin = Math.ceil(min / 15) * 15;
+
+  if (roundedMin === 60) {
+    hour += 1;
+    roundedMin = 0;
+  }
+
+  const hourStr = hour.toString().padStart(2, '0');
+  const roundedMinStr = roundedMin.toString().padStart(2, '0');
+
+  return `${hourStr}${roundedMinStr}`;
+}

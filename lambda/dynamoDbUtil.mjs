@@ -1,6 +1,7 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { PutCommand } from '@aws-sdk/lib-dynamodb';
 import { GetCommand } from '@aws-sdk/lib-dynamodb';
+import { DeleteCommand } from '@aws-sdk/lib-dynamodb';
 
 const client = new DynamoDBClient({ region: 'ap-northeast-1' });
 const TABLE_NAME = "linebot_AutoKintai_state";

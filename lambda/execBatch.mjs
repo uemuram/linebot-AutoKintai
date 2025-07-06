@@ -1,4 +1,4 @@
-import { getDakoku } from './chronusUtil.mjs';
+import { getDakoku, roundDownTo15Min, roundUpTo15Min } from './chronusUtil.mjs';
 import { putItemToDB, deleteItemFromDB, getItemFromDB } from './dynamoDbUtil.mjs';
 
 const LINE_MY_USER_ID = process.env.LINE_MY_USER_ID;
@@ -76,37 +76,3 @@ function getYesterdayDate() {
   return date;
 }
 
-// 時刻を15分単位で丸める
-function roundDownTo15Min(hhmm) {
-  if (!/^\d{4}$/.test(hhmm)) return ''; // フォーマットが不正なら空文字を返す
-
-  const hour = parseInt(hhmm.slice(0, 2), 10);
-  const min = parseInt(hhmm.slice(2, 4), 10);
-
-  const roundedMin = Math.floor(min / 15) * 15;
-  const roundedMinStr = roundedMin.toString().padStart(2, '0');
-  const hourStr = hour.toString().padStart(2, '0');
-
-  return `${hourStr}${roundedMinStr}`;
-}
-
-// 時刻を15分単位で切り上げる
-function roundUpTo15Min(hhmm) {
-  if (!/^\d{4}$/.test(hhmm)) return ''; // フォーマットが不正なら空文字を返す
-
-  let hour = parseInt(hhmm.slice(0, 2), 10);
-  let min = parseInt(hhmm.slice(2, 4), 10);
-
-  // 切り上げ処理
-  let roundedMin = Math.ceil(min / 15) * 15;
-
-  if (roundedMin === 60) {
-    hour += 1;
-    roundedMin = 0;
-  }
-
-  const hourStr = hour.toString().padStart(2, '0');
-  const roundedMinStr = roundedMin.toString().padStart(2, '0');
-
-  return `${hourStr}${roundedMinStr}`;
-}

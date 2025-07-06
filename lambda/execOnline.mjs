@@ -2,7 +2,7 @@ import { validateSignature } from "@line/bot-sdk";
 import { askGemini } from './geminiUtil.mjs';
 import { registKintai, roundDownTo15Min, roundUpTo15Min } from './chronusUtil.mjs';
 import { putItemToDB, deleteItemFromDB, getItemFromDB } from './dynamoDbUtil.mjs';
-import { replyMessage, pushMessage } from './lineUtil.mjs';
+import { replyMessage, pushMessage, showLoadingAnimation } from './lineUtil.mjs';
 import fs from 'fs/promises';
 
 const LINE_CHANNEL_SECRET = process.env.LINE_CHANNEL_SECRET;
@@ -49,6 +49,7 @@ export async function execOnline(req) {
   let promptStr = '';
   switch (preRegistDateTimeType) {
     case 1:
+      // 登録候補の日時が全て決まっている場合
       promptStr = await renderTemplate('./prompt/prompt1.txt',
         {
           messageText: messageText, today: getTodayString(),
@@ -56,6 +57,7 @@ export async function execOnline(req) {
         });
       break;
     case 2:
+      // 登録候補の日時が一部分決まっている場合
       promptStr = await renderTemplate('./prompt/prompt2.txt',
         {
           messageText: messageText, today: getTodayString(),
@@ -63,6 +65,7 @@ export async function execOnline(req) {
         });
       break;
     case 3:
+      // 登録候補の日時が決まっていない場合
       promptStr = await renderTemplate('./prompt/prompt3.txt',
         { messageText: messageText, today: getTodayString(), });
       break;
@@ -111,6 +114,41 @@ export async function execOnline(req) {
     await deleteItemFromDB(LINE_MY_USER_ID);
     return;
   }
+
+  // type=c2(日時に不明点がある) の場合は不明点の入力を促す
+  if (replyFromAIObj.type == 'c2') {
+    // 入力を促すメッセージを送信
+    await replyMessage(replyToken, replyFromAIObj.res);
+    // DB登録
+    await putItemToDB(LINE_MY_USER_ID, {
+      date: replyFromAIObj.date,
+      startTime: replyFromAIObj.startTime,
+      endTime: replyFromAIObj.endTime
+    });
+    return;
+  }
+
+  // 登録候補日時が全て埋まっており、type=a(同意) の場合、即座に登録。状態はリセット
+  if (preRegistDateTimeType == 1 && replyFromAIObj.type == 'a') {
+    // ローディング表示
+    await showLoadingAnimation(LINE_MY_USER_ID);
+    // 勤怠登録
+    let result;
+    try {
+      result = await registKintai(preRegistDateTime.date, preRegistDateTime.startTime, preRegistDateTime.endTime);
+      console.log(result);
+    } catch (err) {
+      console.log(err.message);
+      console.log(err.stack);
+      await replyMessage(replyToken, 'クロノスの操作で予期せぬエラーが発生しました');
+      return;
+    }
+    // 通知
+    await replyMessage(replyToken, '登録が完了しました');
+    await deleteItemFromDB(LINE_MY_USER_ID);
+    return;
+  }
+
 
   return;
 

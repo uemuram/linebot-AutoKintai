@@ -53,8 +53,7 @@ export async function execBatch() {
   const pushText = `昨日(${targetDate.year}/${targetDate.month}/${targetDate.day})の打刻は\n`
     + `${timeStamps.start}～${timeStamps.end}でした\n\n`
     + `${roundTimeStamps.start}～${roundTimeStamps.end}で勤怠を登録しますか?`;
-  // TODO 元に戻す
-  // await pushMessage(LINE_MY_USER_ID, pushText);
+  await pushMessage(LINE_MY_USER_ID, pushText);
 
   return;
 }

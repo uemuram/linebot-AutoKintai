@@ -87,9 +87,6 @@ export async function execOnline(req) {
     await replyMessage(replyToken, 'リクエストの解析で予期せぬエラーが発生しました');
     return;
   }
-  // replyFromAIStr = '```json { "type": 1, "date": "", "startTime": "", "endTime": "", "res": "" }  ```';
-  // replyFromAIStr = '```json { "type": 2, "date": "20250625", "startTime": "0800", "endTime": "1700", "res": "" }  ```';
-  // replyFromAIStr = '```json { "type": 3, "date": "20250625", "startTime": "", "endTime": "", "res": "意味がわかりませんでした。" }  ```';
 
   // 応答をjsオブジェクトに変換
   let replyFromAIObj;
@@ -112,14 +109,14 @@ export async function execOnline(req) {
   }
 
   // type=b(否定、拒否) の場合は了解した旨を返却して終了。状態はリセット
-  if (replyFromAIObj.type == 'b') {
+  else if (replyFromAIObj.type == 'b') {
     await replyMessage(replyToken, '了解しました');
     await deleteItemFromDB(LINE_MY_USER_ID);
     return;
   }
 
   // type=c2(日時に不明点がある) の場合は不明点の入力を促す
-  if (replyFromAIObj.type == 'c2') {
+  else if (replyFromAIObj.type == 'c2') {
     // 入力を促すメッセージを送信
     await replyMessage(replyToken, replyFromAIObj.res);
     // DB登録
@@ -132,7 +129,7 @@ export async function execOnline(req) {
   }
 
   // type=c1(登録日時が今回で確定)場合は、登録日時を宣言した上で登録実施
-  if (replyFromAIObj.type == 'c1') {
+  else if (replyFromAIObj.type == 'c1') {
     // 登録時刻を15分単位で切り上げる / 丸める
     const roundTimes = {
       startTime: roundUpTo15Min(replyFromAIObj.startTime),
@@ -175,7 +172,7 @@ export async function execOnline(req) {
   }
 
   // 登録候補日時があらかじめ全て埋まっており、type=a(同意) の場合、即座に登録。状態はリセット
-  if (preRegistDateTimeType == 1 && replyFromAIObj.type == 'a') {
+  else if (preRegistDateTimeType == 1 && replyFromAIObj.type == 'a') {
     // ローディング表示
     await showLoadingAnimation(LINE_MY_USER_ID);
 
@@ -197,43 +194,30 @@ export async function execOnline(req) {
     return;
   }
 
-  return;
+  // 登録候補日時の情報がなく、type=a(同意、依頼) の場合、当日の9時～現在時刻での登録を提案
+  else if (preRegistDateTimeType == 3 && replyFromAIObj.type == 'a') {
+    // ローディング表示
+    await showLoadingAnimation(LINE_MY_USER_ID);
 
-  // 入力から日付けを調整
-  const input = adjustInput(replyFromAIObj);
-  console.log(input);
+    // 今日の9時～現在時刻を開始時刻とする
+    const endTime = roundDownTo15Min(getCurrentTimeHHMM());
+    const readyMessage = `${getTodayString()}  0900～${endTime}で勤怠を登録しますか?`;
+    await replyMessage(replyToken, readyMessage);
 
-  // 日付けが不正だった場合はエラーを返す
-  if (!input.success) {
-    await replyMessage(replyToken, '勤怠日付時刻を正しく計算できませんでした');
+    // DB登録
+    await putItemToDB(LINE_MY_USER_ID, {
+      date: getTodayCompactString(),
+      startTime: '0900',
+      endTime: endTime
+    });
     return;
   }
 
-  // 勤怠計算前に一旦通知する
-  const readyMessage = `${input.year}/${input.month}/${input.day}  ${input.startTime}～${input.endTime}で勤怠を登録します`;
-  await replyMessage(replyToken, readyMessage);
-
-  // クロノスに勤怠を登録する
-  // let result;
-  // try {
-  //   result = await registKintai(input.year, input.month, input.day, input.startTime, input.endTime);
-  //   console.log(result);
-  // } catch (err) {
-  //   console.log(err.message);
-  //   console.log(err.stack);
-  //   result = { success: false, msg: 'クロノスの操作で予期せぬエラーが発生しました' };
-  // }
-  let result = { success: true };
-  // TODO クロノス登録を有効化
-
-  // LINEへ返信
-  const pushText = result.success ? "勤怠を登録しました" : result.msg;
-  console.log(`プッシュメッセージ:${pushText}`);
-  // TODO プッシュを有効化
-  // await pushMessage(LINE_MY_USER_ID, pushText);
-
-
-  return;
+  // 基本ここには到達しないが、もし到達したらエラーを返す
+  else {
+    await replyMessage(replyToken, '処理分岐エラーが発生しました');
+    return;
+  }
 }
 
 // オブジェクトのタイプ判定
@@ -256,123 +240,36 @@ function getPreRegistDateTimeType(input) {
   return 3;
 }
 
-// インプット情報を調整して返す
-// テストコード
-// console.log(adjustInput({ type: 1, date: '', startTime: '', endTime: '', res: '' }));
-// console.log(adjustInput({ type: 2, date: '20250626', startTime: '0900', endTime: '', res: '' }));
-// console.log(adjustInput({ type: 2, date: '', startTime: '', endTime: '', res: '' }));
-// console.log(adjustInput({ type: 2, date: '20250101', startTime: '', endTime: '', res: '' }));
-// console.log(adjustInput({ type: 3, date: '', startTime: '', endTime: '', res: '' }));
-function adjustInput(input) {
-  const result = {
-    success: true,
-    year: '',
-    month: '',
-    day: '',
-    startTime: '',
-    endTime: ''
-  };
-
-  // 日本時間で現在時刻を取得
+// 共通：日本時間の Date オブジェクトを取得
+function getNowJST() {
   const now = new Date();
-  const jst = new Date(now.toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' }));
-
-  const pad = (n, len = 2) => n.toString().padStart(len, '0');
-
-  const yearStr = jst.getFullYear().toString();
-  const monthNum = jst.getMonth() + 1;
-  const dayNum = jst.getDate();
-  const today = `${yearStr}${pad(monthNum)}${pad(dayNum)}`;
-  const currentYearMonth = `${yearStr}${pad(monthNum)}`;
-
-  // 時刻を15分単位に丸める関数（切り捨て）
-  const getRoundedTime = (date) => {
-    const hours = date.getHours();
-    const minutes = Math.floor(date.getMinutes() / 15) * 15;
-    return `${pad(hours)}${pad(minutes)}`;
-  };
-
-  // HHMM形式文字列 → Dateへの変換ユーティリティ
-  const toRoundedTimeFromHHMM = (hhmm, baseDate) => {
-    const h = parseInt(hhmm.substring(0, 2));
-    const m = parseInt(hhmm.substring(2, 4));
-    const date = new Date(baseDate);
-    date.setHours(h);
-    date.setMinutes(m);
-    return getRoundedTime(date);
-  };
-
-  switch (input.type) {
-    case 1:
-      result.year = yearStr;
-      result.month = monthNum.toString();
-      result.day = dayNum.toString();
-      result.startTime = '0900';
-
-      const endTime1 = getRoundedTime(jst);
-      if (parseInt(endTime1) < 900) {
-        result.success = false;
-        break;
-      }
-
-      result.endTime = endTime1;
-      break;
-
-    case 2:
-      let inputDate = input.date || today;
-
-      if (/^\d{8}$/.test(inputDate) && inputDate.substring(0, 6) === currentYearMonth) {
-        result.year = inputDate.substring(0, 4);
-        result.month = parseInt(inputDate.substring(4, 6)).toString();
-        result.day = parseInt(inputDate.substring(6, 8)).toString();
-      } else {
-        result.success = false;
-        break;
-      }
-
-      // startTime の処理（丸める）
-      if (input.startTime) {
-        result.startTime = toRoundedTimeFromHHMM(input.startTime, jst);
-      } else {
-        result.startTime = '0900';
-      }
-
-      // endTime の処理（丸める）
-      if (input.endTime) {
-        result.endTime = toRoundedTimeFromHHMM(input.endTime, jst);
-      } else {
-        result.endTime = getRoundedTime(jst);
-      }
-
-      // 時間順チェック
-      if (parseInt(result.endTime) < parseInt(result.startTime)) {
-        result.success = false;
-      }
-
-      break;
-
-    default:
-      result.success = false;
-      break;
-  }
-
-  return result;
+  return new Date(now.toLocaleString("en-US", { timeZone: "Asia/Tokyo" }));
 }
 
-// 今日の日付をyyyy/mm/dd形式で返す
+// 今日の日付を yyyy/m/d 形式で返す（ゼロ埋めなし）
 function getTodayString() {
-  const now = new Date();
-
-  // 日本時間に変換
-  const nowJST = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Tokyo" }));
-
-  // 年・月・日を取得
+  const nowJST = getNowJST();
   const year = nowJST.getFullYear();
-  const month = String(nowJST.getMonth() + 1).padStart(2, '0'); // 月は0始まりなので+1
-  const day = String(nowJST.getDate()).padStart(2, '0');
-
-  // yyyy/mm/dd 形式の文字列を作成
+  const month = nowJST.getMonth() + 1; // 0始まりなので+1
+  const day = nowJST.getDate();
   return `${year}/${month}/${day}`;
+}
+
+// 今日の日付を YYYYMMDD 形式で返す
+function getTodayCompactString() {
+  const nowJST = getNowJST();
+  const year = nowJST.getFullYear();
+  const month = String(nowJST.getMonth() + 1).padStart(2, '0');
+  const day = String(nowJST.getDate()).padStart(2, '0');
+  return `${year}${month}${day}`;
+}
+
+// 現在時刻を HHMM 形式（日本時間）で返す
+function getCurrentTimeHHMM() {
+  const nowJST = getNowJST();
+  const hour = String(nowJST.getHours()).padStart(2, '0');
+  const minutes = String(nowJST.getMinutes()).padStart(2, '0');
+  return `${hour}${minutes}`;
 }
 
 // テンプレートファイルを読み込む

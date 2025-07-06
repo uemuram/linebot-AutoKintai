@@ -1,4 +1,3 @@
-import { Client } from "@line/bot-sdk";
 import { execOnline } from './execOnline.mjs';
 import { execBatch } from './execBatch.mjs';
 

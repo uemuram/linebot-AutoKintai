@@ -213,21 +213,26 @@ export async function execOnline(req) {
     // ローディング表示
     await showLoadingAnimation(LINE_MY_USER_ID);
 
-    // TODO 9時より前にここに入ろうとすると、勤務時間が9:00～6:00とかになって後続でおかしくなる。dynamoにも不整合な値が残る
-    // 整合性チェック用の共通関数を作るとか…(どこに入れる? dynamo登録の直前?r)
-    // 再現手順:DBが空の状態で「クロノス入れて」と打つ
-
-    // 今日の9時～現在時刻を開始時刻とする
+    // 今日の9時～現在時刻を登録日時とする
+    const startTime = '0900';
     const endTime = roundDownTo15Min(getCurrentTimeHHMM());
-    const readyMessage = `${getTodayString()}  0900～${endTime}で勤怠を登録しますか?`;
-    await replyMessage(replyToken, readyMessage);
 
+    // 今日の9時～現在時刻を登録日時とできるか判定
+    let registDateTime = { date: getTodayCompactString(), startTime: "", endTime: "" };
+    let replyText;
+    if (parseInt(startTime, 10) < parseInt(endTime, 10)) {
+      // 9時～現在時刻が指定可能な場合
+      registDateTime.startTime = startTime;
+      registDateTime.startTime = endTime;
+      replyText = `${getTodayString()}  0900～${endTime}で勤怠を登録しますか?`;
+    } else {
+      // 9時～現在時刻が指定できない場合(9時より前にこのフローに入った場合)
+      replyText = "勤務時刻を教えてください";
+    }
+    // 通知
+    await replyMessage(replyToken, replyText);
     // DB登録
-    await putItemToDB(LINE_MY_USER_ID, {
-      date: getTodayCompactString(),
-      startTime: '0900',
-      endTime: endTime
-    });
+    await putItemToDB(LINE_MY_USER_ID, { registDateTime });
     return;
   }
 

@@ -172,14 +172,12 @@ export async function execOnline(req) {
     // 勤怠登録
     let result;
     try {
-      // TODO registKintaiでエラーになった場合はDBをクリア(2か所ある)
       result = await registKintai(replyFromAIObj.date, roundTimes.startTime, roundTimes.endTime);
       console.log(result);
     } catch (err) {
       console.log(err.message);
       console.log(err.stack);
-      await pushMessage(LINE_MY_USER_ID, 'クロノスの操作で予期せぬエラーが発生しました')
-      return;
+      result = { success: false, msg: 'クロノスの操作で予期せぬエラーが発生しました' };
     }
 
     // 完了通知
@@ -196,14 +194,12 @@ export async function execOnline(req) {
     // 勤怠登録
     let result;
     try {
-      // TODO registKintaiでエラーになった場合はDBをクリア(2か所ある)
       result = await registKintai(preRegistDateTime.date, preRegistDateTime.startTime, preRegistDateTime.endTime);
       console.log(result);
     } catch (err) {
       console.log(err.message);
       console.log(err.stack);
-      await replyMessage(replyToken, 'クロノスの操作で予期せぬエラーが発生しました');
-      return;
+      result = { success: false, msg: 'クロノスの操作で予期せぬエラーが発生しました' };
     }
 
     // 完了通知

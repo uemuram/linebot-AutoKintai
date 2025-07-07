@@ -115,28 +115,13 @@ export async function execOnline(req) {
     return;
   }
 
-  // type=c2(日時に不明点がある) の場合は不明点の入力を促す
-  else if (replyFromAIObj.type == 'c2') {
-    // 入力を促すメッセージを送信
-    await replyMessage(replyToken, replyFromAIObj.res);
-    // DB登録
-    await putItemToDB(LINE_MY_USER_ID, {
-      date: replyFromAIObj.date,
-      startTime: replyFromAIObj.startTime,
-      endTime: replyFromAIObj.endTime
-    });
-    return;
-  }
+  // type=c(登録日時が一部、もしくは全体的に確定)場合は、追加情報を促す、もしくは登録日時を宣言した上で登録実施
+  else if (replyFromAIObj.type == 'c') {
 
-  // TODO c1とc2の判定はAIにさせないほうがいいのかも(よく間違えられるので、AIの負荷を下げる意味でも)
-  // type=c1(登録日時が今回で確定)場合は、登録日時を宣言した上で登録実施
-  else if (replyFromAIObj.type == 'c1') {
-
-    // もし空の要素があった場合
-    // (c1の場合は空にならないはずだが、AIがおかしい応答を返した場合の保険として処理に追加)
-    if (!replyFromAIObj.date || !replyFromAIObj.startTime || !replyFromAIObj.endTime) {
-      await replyMessage(replyToken, '勤務日時を指定してください');
-
+    // AIの判定結果をチェック
+    const validateResult = validateWorkTime(replyFromAIObj.date, replyFromAIObj.startTime, replyFromAIObj.endTime);
+    if (!validateResult.status) {
+      await replyMessage(replyToken, validateResult.msg);
       // 分かっている情報は保存しておく
       await putItemToDB(LINE_MY_USER_ID, {
         date: replyFromAIObj.date,
@@ -227,7 +212,7 @@ export async function execOnline(req) {
       replyText = `${getTodayString()}  ${startTime}～${endTime}で勤怠を登録しますか?`;
     } else {
       // 9時～現在時刻が指定できない場合(9時より前にこのフローに入った場合)
-      replyText = "勤務時刻を教えてください";
+      replyText = validateWorkTime(registDateTime.date, "", "").msg;
     }
     // 通知
     await replyMessage(replyToken, replyText);
@@ -358,4 +343,25 @@ function formatKintaiInfo(date, startTime, endTime) {
   }
 
   return parts.join('、');
+}
+
+// 欠落項目に応じたメッセージを返す
+function validateWorkTime(date, startTime, endTime) {
+  const missingFields = [];
+
+  if (!date) missingFields.push("勤務日");
+  if (!startTime) missingFields.push("開始時間");
+  if (!endTime) missingFields.push("終了時間");
+
+  if (missingFields.length === 0) {
+    return {
+      status: true,
+      msg: ""
+    };
+  } else {
+    return {
+      status: false,
+      msg: `${missingFields.join("、")}を教えてください`
+    };
+  }
 }

@@ -350,8 +350,8 @@ function validateWorkTime(date, startTime, endTime) {
   const missingFields = [];
 
   if (!date) missingFields.push("勤務日");
-  if (!startTime) missingFields.push("開始時間");
-  if (!endTime) missingFields.push("終了時間");
+  if (!startTime) missingFields.push("開始時刻");
+  if (!endTime) missingFields.push("終了時刻");
 
   if (missingFields.length === 0) {
     return {

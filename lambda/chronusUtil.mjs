@@ -66,7 +66,7 @@ export async function getDakoku(year, month, day) {
     try {
         console.log('----------- ページオープン 開始 -----------');
         const page = await browser.newPage();
-        await page.goto(`${CHRONUS_BASE_URL}/Lysithea/JSP_Files/authentication/WC010_1.jsp?COMPANY_CODE=100`);
+        await page.goto(CHRONUS_BASE_URL);
 
         console.log('----------- ログイン 開始 -----------');
         const menuFrame = await login(page);

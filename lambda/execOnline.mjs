@@ -8,6 +8,8 @@ import fs from 'fs/promises';
 const LINE_CHANNEL_SECRET = process.env.LINE_CHANNEL_SECRET;
 const LINE_MY_USER_ID = process.env.LINE_MY_USER_ID;
 
+// TODO 日付が変わっても時刻がリセットされない場合があるのでプロンプト改善 (例: 2日後の勤怠入れて 9時から → 明日の勤怠入れて → 9時の情報が保持されてしまう)  
+
 export async function execOnline(req) {
 
   // 署名の検証（LINEからの接続か）

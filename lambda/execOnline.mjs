@@ -224,7 +224,7 @@ export async function execOnline(req) {
       // 9時～現在時刻が指定可能な場合
       registDateTime.startTime = startTime;
       registDateTime.startTime = endTime;
-      replyText = `${getTodayString()}  0900～${endTime}で勤怠を登録しますか?`;
+      replyText = `${getTodayString()}  ${startTime}～${endTime}で勤怠を登録しますか?`;
     } else {
       // 9時～現在時刻が指定できない場合(9時より前にこのフローに入った場合)
       replyText = "勤務時刻を教えてください";

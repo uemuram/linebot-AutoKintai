@@ -9,7 +9,7 @@ const LINE_CHANNEL_SECRET = process.env.LINE_CHANNEL_SECRET;
 const LINE_MY_USER_ID = process.env.LINE_MY_USER_ID;
 
 // TODO 日付が変わっても時刻がリセットされない場合があるのでプロンプト改善 (例: 2日後の勤怠入れて 9時から → 明日の勤怠入れて → 9時の情報が保持されてしまう)  
-
+// TODO バッチに対して部分的な時刻変更が聴かない場合があるのでプロンプト改善(例： 7/8にバッチ稼働 → 「7/7 0845～1800で登録しますか?」 → 9時からで → 18時の情報が消えてしまう  日付けが変わっているから?)
 export async function execOnline(req) {
 
   // 署名の検証（LINEからの接続か）

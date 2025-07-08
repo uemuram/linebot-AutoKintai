@@ -125,19 +125,29 @@ export async function execOnline(req) {
     || (preRegistDateTimeType == 2 && replyFromAIObj.type == 'a')) {
     console.log('分岐:AIからの日時提案あり');
 
+    // 補正1 日付の指定が変わった場合は過去の勤怠候補時刻を捨てる
+    console.log(`勤怠日時候補(補正前):${preRegistDateTime}`);
+    if (preRegistDateTime && replyFromAIObj.date && preRegistDateTime.date
+      && replyFromAIObj.date != preRegistDateTime.date) {
+      //両方に日付の指定があり、かつそれが異なっている場合
+      preRegistDateTime.startTime = "";
+      preRegistDateTime.endTime = "";
+    }
+    console.log(`勤怠日時候補(補正後):${preRegistDateTime}`);
+
     // AIの判定と過去の勤怠日時候補をマージ
-    // TODO 別の個所だけど、DBに{"registDateTime": {"date"… が入ることにより値がおかしくなる場合がある
     const mergedDateTime = mergeDateTime(replyFromAIObj, preRegistDateTime);
     console.log("AIの判定/勤怠日時候補/マージ後(以下)");
     console.log(replyFromAIObj);
     console.log(preRegistDateTime);
     console.log(mergedDateTime);
-    // この時点で日付けが空なら本日日付けを設定
+
+    // 補正2 この時点で日付けが空なら本日日付けを設定
     if (!mergedDateTime.date) {
       mergedDateTime.date = getTodayCompactString();
     }
 
-    // AIの判定結果をチェック
+    // ここまでの判定結果をチェック
     const validateResult = validateWorkTime(mergedDateTime.date, mergedDateTime.startTime, mergedDateTime.endTime);
     if (!validateResult.status) {
       await replyMessage(replyToken, validateResult.msg);

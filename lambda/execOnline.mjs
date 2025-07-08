@@ -106,6 +106,7 @@ export async function execOnline(req) {
 
   // type=d(その他のメッセージ) の場合はそのまま返却して終了。状態はリセット
   if (replyFromAIObj.type == 'd') {
+    console.log('分岐:その他');
     await replyMessage(replyToken, replyFromAIObj.res);
     await deleteItemFromDB(LINE_MY_USER_ID);
     return;
@@ -113,31 +114,46 @@ export async function execOnline(req) {
 
   // type=b(否定、拒否) の場合は了解した旨を返却して終了。状態はリセット
   else if (replyFromAIObj.type == 'b') {
+    console.log('分岐:拒否');
     await replyMessage(replyToken, '了解しました');
     await deleteItemFromDB(LINE_MY_USER_ID);
     return;
   }
 
   // type=c(登録日時が一部、もしくは全体的に確定)場合は、追加情報を促す、もしくは登録日時を宣言した上で登録実施
-  else if (replyFromAIObj.type == 'c') {
+  else if (replyFromAIObj.type == 'c'
+    || (preRegistDateTimeType == 2 && replyFromAIObj.type == 'a')) {
+    console.log('分岐:AIからの日時提案あり');
+
+    // AIの判定と過去の勤怠日時候補をマージ
+    // TODO 別の個所だけど、DBに{"registDateTime": {"date"… が入ることにより値がおかしくなる場合がある
+    const mergedDateTime = mergeDateTime(replyFromAIObj, preRegistDateTime);
+    console.log("AIの判定/勤怠日時候補/マージ後(以下)");
+    console.log(replyFromAIObj);
+    console.log(preRegistDateTime);
+    console.log(mergedDateTime);
+    // この時点で日付けが空なら本日日付けを設定
+    if (!mergedDateTime.date) {
+      mergedDateTime.date = getTodayCompactString();
+    }
 
     // AIの判定結果をチェック
-    const validateResult = validateWorkTime(replyFromAIObj.date, replyFromAIObj.startTime, replyFromAIObj.endTime);
+    const validateResult = validateWorkTime(mergedDateTime.date, mergedDateTime.startTime, mergedDateTime.endTime);
     if (!validateResult.status) {
       await replyMessage(replyToken, validateResult.msg);
       // 分かっている情報は保存しておく
       await putItemToDB(LINE_MY_USER_ID, {
-        date: replyFromAIObj.date,
-        startTime: replyFromAIObj.startTime,
-        endTime: replyFromAIObj.endTime
+        date: mergedDateTime.date,
+        startTime: mergedDateTime.startTime,
+        endTime: mergedDateTime.endTime
       });
       return;
     }
 
     // 登録時刻を15分単位で切り上げる / 丸める
     const roundTimes = {
-      startTime: roundUpTo15Min(replyFromAIObj.startTime),
-      endTime: roundDownTo15Min(replyFromAIObj.endTime),
+      startTime: roundUpTo15Min(mergedDateTime.startTime),
+      endTime: roundDownTo15Min(mergedDateTime.endTime),
     };
     console.log(`登録時刻(補正後) : ${roundTimes.startTime}-${roundTimes.endTime}`);
 
@@ -148,9 +164,9 @@ export async function execOnline(req) {
     }
 
     // 登録時刻を通知する
-    const year = replyFromAIObj.date.slice(0, 4);
-    const month = String(parseInt(replyFromAIObj.date.slice(4, 6), 10)); // ゼロ除去
-    const day = String(parseInt(replyFromAIObj.date.slice(6, 8), 10));   // ゼロ除去
+    const year = mergedDateTime.date.slice(0, 4);
+    const month = String(parseInt(mergedDateTime.date.slice(4, 6), 10)); // ゼロ除去
+    const day = String(parseInt(mergedDateTime.date.slice(6, 8), 10));   // ゼロ除去
     const readyMessage = `${year}/${month}/${day}  ${roundTimes.startTime}～${roundTimes.endTime}で勤怠を登録します`;
     await replyMessage(replyToken, readyMessage);
 
@@ -160,7 +176,7 @@ export async function execOnline(req) {
     // 勤怠登録
     let result;
     try {
-      result = await registKintai(replyFromAIObj.date, roundTimes.startTime, roundTimes.endTime);
+      result = await registKintai(mergedDateTime.date, roundTimes.startTime, roundTimes.endTime);
       console.log(result);
     } catch (err) {
       console.log(err.message);
@@ -176,6 +192,7 @@ export async function execOnline(req) {
 
   // 登録候補日時があらかじめ全て埋まっており、type=a(同意) の場合、即座に登録。状態はリセット
   else if (preRegistDateTimeType == 1 && replyFromAIObj.type == 'a') {
+    console.log('分岐:即時登録');
     // ローディング表示
     await showLoadingAnimation(LINE_MY_USER_ID);
 
@@ -198,6 +215,7 @@ export async function execOnline(req) {
 
   // 登録候補日時の情報がなく、type=a(同意、依頼) の場合、当日の9時～現在時刻での登録を提案
   else if (preRegistDateTimeType == 3 && replyFromAIObj.type == 'a') {
+    console.log('分岐:当日時刻で登録');
     // ローディング表示
     await showLoadingAnimation(LINE_MY_USER_ID);
 
@@ -211,8 +229,8 @@ export async function execOnline(req) {
     if (parseInt(startTime, 10) < parseInt(endTime, 10)) {
       // 9時～現在時刻が指定可能な場合
       registDateTime.startTime = startTime;
-      registDateTime.startTime = endTime;
-      replyText = `${getTodayString()}  ${startTime}～${endTime}で勤怠を登録しますか?`;
+      registDateTime.endTime = endTime;
+      replyText = `${getTodayString()}  ${registDateTime.startTime}～${registDateTime.endTime}で勤怠を登録しますか?`;
     } else {
       // 9時～現在時刻が指定できない場合(9時より前にこのフローに入った場合)
       replyText = validateWorkTime(registDateTime.date, "", "").msg;
@@ -220,12 +238,13 @@ export async function execOnline(req) {
     // 通知
     await replyMessage(replyToken, replyText);
     // DB登録
-    await putItemToDB(LINE_MY_USER_ID, { registDateTime });
+    await putItemToDB(LINE_MY_USER_ID, registDateTime);
     return;
   }
 
   // 基本ここには到達しないが、もし到達したらエラーを返す
   else {
+    console.log('分岐:例外');
     await replyMessage(replyToken, '処理分岐エラーが発生しました');
     return;
   }
@@ -367,4 +386,21 @@ function validateWorkTime(date, startTime, endTime) {
       msg: `${missingFields.join("、")}を教えてください`
     };
   }
+}
+
+// DBからの取得結果とAIの判定結果をマージ(AI側を優先)
+function mergeDateTime(replyFromAIObj, preRegistDateTime) {
+  const fields = ["date", "startTime", "endTime"];
+  const result = {};
+
+  fields.forEach((key) => {
+    const replyVal = replyFromAIObj?.[key] ?? "";
+    const preVal = preRegistDateTime?.[key] ?? "";
+
+    result[key] = replyVal !== "" ? replyVal
+      : preVal !== "" ? preVal
+        : "";
+  });
+
+  return result;
 }

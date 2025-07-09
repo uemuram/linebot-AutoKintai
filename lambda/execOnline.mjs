@@ -9,7 +9,6 @@ const LINE_CHANNEL_SECRET = process.env.LINE_CHANNEL_SECRET;
 const LINE_MY_USER_ID = process.env.LINE_MY_USER_ID;
 
 // TODO プロンプト課題：明日の勤怠入れて→type 「明日」の部分が認識されずaとみなされてしまう(今日の勤怠登録になってしまう)
-// TODO プロンプト課題：「明日」→8時から→20時まで　:20時まで、のタイミングで今日の勤怠扱いになってしまう
 export async function execOnline(req) {
 
   // 署名の検証（LINEからの接続か）

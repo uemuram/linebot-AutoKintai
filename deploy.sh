@@ -13,6 +13,7 @@ npm install
 rm -f ${SCRIPT_DIR}/.deploy/lambda.zip
 zip -rq ${SCRIPT_DIR}/.deploy/lambda.zip ./*
 
+
 echo "[deploy]"
 cd ${SCRIPT_DIR}/.deploy
 result=`aws lambda update-function-code --function-name ${FUNCTION_NAME_1} --zip-file fileb://lambda.zip`
@@ -22,3 +23,14 @@ result=`aws lambda update-function-code --function-name ${FUNCTION_NAME_2} --zip
 echo "deploy2 ${result}"
 
 echo "[deploy finish]"
+
+
+echo "[archive module]"
+
+mkdir -p ${SCRIPT_DIR}/module
+rm -f ${SCRIPT_DIR}/module/*.zip
+
+timestamp=$(date +%Y%m%d%H%M%S)
+cp ${SCRIPT_DIR}/.deploy/lambda.zip ${SCRIPT_DIR}/module/lambda_${timestamp}.zip
+
+echo "[archive complete] lambda_${timestamp}.zip"

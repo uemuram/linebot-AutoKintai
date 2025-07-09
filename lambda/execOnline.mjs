@@ -8,9 +8,8 @@ import fs from 'fs/promises';
 const LINE_CHANNEL_SECRET = process.env.LINE_CHANNEL_SECRET;
 const LINE_MY_USER_ID = process.env.LINE_MY_USER_ID;
 
-// TODO 日付が変わっても時刻がリセットされない場合があるのでプロンプト改善 (例: 2日後の勤怠入れて 9時から → 明日の勤怠入れて → 9時の情報が保持されてしまう)
-// TODO バッチに対して部分的な時刻変更が聴かない場合があるのでプロンプト改善(例： 7/8にバッチ稼働 → 「7/7 0845～1800で登録しますか?」 → 9時からで → 18時の情報が消えてしまう  日付けが変わっているから?)
-// TODO 過去情報は渡さずに、今のメッセージから判定してマージはロジック側でやるのが結局いいのかも
+// TODO プロンプト課題：明日の勤怠入れて→type 「明日」の部分が認識されずaとみなされてしまう(今日の勤怠登録になってしまう)
+// TODO プロンプト課題：「明日」→8時から→20時まで　:20時まで、のタイミングで今日の勤怠扱いになってしまう
 export async function execOnline(req) {
 
   // 署名の検証（LINEからの接続か）

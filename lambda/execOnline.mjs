@@ -8,9 +8,6 @@ import fs from 'fs/promises';
 const LINE_CHANNEL_SECRET = process.env.LINE_CHANNEL_SECRET;
 const LINE_MY_USER_ID = process.env.LINE_MY_USER_ID;
 
-//TODO バッチ実行後に、「１８時まで」を指定すると今日になってしまう。徹底的に具体化するしかないか
-//TODO 強制的に日付部分と時間部分にまず分離させるとか
-//TODO https://ap-northeast-1.console.aws.amazon.com/cloudwatch/home?region=ap-northeast-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Flinebot_AutoKintai/log-events/2025$252F07$252F11$252F$255B$2524LATEST$255D4e4b81e16a65478d850082bd2d362502
 export async function execOnline(req) {
 
   // 署名の検証（LINEからの接続か）

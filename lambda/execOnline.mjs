@@ -8,6 +8,9 @@ import fs from 'fs/promises';
 const LINE_CHANNEL_SECRET = process.env.LINE_CHANNEL_SECRET;
 const LINE_MY_USER_ID = process.env.LINE_MY_USER_ID;
 
+//TODO バッチ実行後に、「１８時まで」を指定すると今日になってしまう。徹底的に具体化するしかないか
+//TODO 強制的に日付部分と時間部分にまず分離させるとか
+//TODO https://ap-northeast-1.console.aws.amazon.com/cloudwatch/home?region=ap-northeast-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Flinebot_AutoKintai/log-events/2025$252F07$252F11$252F$255B$2524LATEST$255D4e4b81e16a65478d850082bd2d362502
 export async function execOnline(req) {
 
   // 署名の検証（LINEからの接続か）
@@ -140,17 +143,17 @@ export async function execOnline(req) {
 
     // 1つでも日時情報がある場合は日時情報から判断
     else {
-      console.log('分岐2:当日時刻を提案');
+      console.log('分岐2:日時情報から判断');
 
       // 補正1 日付の指定が変わった場合は過去の勤怠候補時刻を捨てる
-      console.log(`勤怠日時候補(補正前):${preRegistDateTime}`);
+      console.log(`勤怠日時候補(補正前):${JSON.stringify(preRegistDateTime)}`);
       if (preRegistDateTime && replyFromAI.date && preRegistDateTime.date
         && replyFromAI.date != preRegistDateTime.date) {
         //両方に日付の指定があり、かつそれが異なっている場合
         preRegistDateTime.startTime = "";
         preRegistDateTime.endTime = "";
       }
-      console.log(`勤怠日時候補(補正後):${preRegistDateTime}`);
+      console.log(`勤怠日時候補(補正後):${JSON.stringify(preRegistDateTime)}`);
 
       // AIの判定と過去の勤怠日時候補をマージ
       const mergedDateTime = mergeDateTime(replyFromAI, preRegistDateTime);
@@ -182,7 +185,7 @@ export async function execOnline(req) {
 
       // 時刻の整合性がとれていない(開始と終了が同じ or 終了の方が手前)ならエラー
       if (roundTimes.startTime === roundTimes.endTime || parseInt(roundTimes.endTime, 10) < parseInt(roundTimes.startTime, 10)) {
-        await replyMessage(replyToken, '労働時間の計算でエラーが発生しました');
+        await replyMessage(replyToken, '勤務時間の計算でエラーが発生しました');
         return;
       }
 

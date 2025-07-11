@@ -4,6 +4,7 @@ import { pushMessage } from './lineUtil.mjs';
 
 const LINE_MY_USER_ID = process.env.LINE_MY_USER_ID;
 
+// TODO 毎日実行にして、打刻が取れなければ何もしない、という方式にする
 export async function execBatch() {
 
   // 昨日の日付を取得
@@ -42,7 +43,7 @@ export async function execBatch() {
   };
   console.log(`打刻(補正後) : ${roundTimeStamps.start}-${roundTimeStamps.end}`);
 
-  // 同じ(労働時間=0)なら終了
+  // 同じ(勤務時間=0)なら終了
   if (roundTimeStamps.start == roundTimeStamps.end) {
     console.log('開始時刻と終了時刻が同じなので終了');
     return;

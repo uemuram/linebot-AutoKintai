@@ -304,41 +304,6 @@ async function renderTemplate(filePath, values) {
   }
 }
 
-// 勤怠情報を整形する 以下は例
-// formatKintaiInfo("20250705", "0715", "1900"));
-//    → "日付:2025/7/5、勤務開始時刻:7時15分、勤務終了時刻:19時0分"
-// console.log(formatKintaiInfo("20250705", "0715", ""));
-//    → "日付:2025/7/5、勤務開始時刻:7時15分"
-// console.log(formatKintaiInfo("", "0715", ""));
-//    → "勤務開始時刻:7時15分"
-function formatKintaiInfo(date, startTime, endTime) {
-  const parts = [];
-
-  // 日付: YYYYMMDD → YYYY/M/D（ゼロ埋めなし）
-  if (date && /^\d{8}$/.test(date)) {
-    const year = date.slice(0, 4);
-    const month = String(parseInt(date.slice(4, 6), 10));
-    const day = String(parseInt(date.slice(6, 8), 10));
-    parts.push(`日付:${year}/${month}/${day}`);
-  }
-
-  // 勤務開始時刻: HHMM → H時M分（ゼロ埋めなし）
-  if (startTime && /^\d{4}$/.test(startTime)) {
-    const hour = String(parseInt(startTime.slice(0, 2), 10));
-    const minute = String(parseInt(startTime.slice(2, 4), 10));
-    parts.push(`勤務開始時刻:${hour}時${minute}分`);
-  }
-
-  // 勤務終了時刻: HHMM → H時M分（ゼロ埋めなし）
-  if (endTime && /^\d{4}$/.test(endTime)) {
-    const hour = String(parseInt(endTime.slice(0, 2), 10));
-    const minute = String(parseInt(endTime.slice(2, 4), 10));
-    parts.push(`勤務終了時刻:${hour}時${minute}分`);
-  }
-
-  return parts.join('、');
-}
-
 // 欠落項目に応じたメッセージを返す。欠落がなければstatus=true、欠落があれば欠落項目を埋めるメッセージを返す
 function validateWorkTime(date, startTime, endTime) {
   const missingFields = [];

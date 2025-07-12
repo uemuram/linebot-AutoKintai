@@ -65,11 +65,19 @@ export async function execOnline(req) {
 
   // 応答をjsオブジェクトに変換
   let replyFromAI;
-  console.log(replyFromAIStr);
   try {
-    replyFromAI = JSON.parse(replyFromAIStr.replace(/```json|```/g, '').trim());
+    let jsonStr = '';
+    // ```json ～ ``` に囲まれている場合は中身だけ抽出
+    const fencedMatch = replyFromAIStr.match(/```json\s*([\s\S]*?)\s*```/);
+    if (fencedMatch) {
+      jsonStr = fencedMatch[1].trim();
+    } else {
+      // 囲いがない場合はそのままパースを試みる
+      jsonStr = replyFromAIStr.trim();
+    }
+    replyFromAI = JSON.parse(jsonStr);
   } catch (err) {
-    console.log(err.message);
+    console.log('JSON解析エラー:', err.message);
     console.log(err.stack);
     await replyMessage(replyToken, 'リクエストの解析で文法エラーが発生しました');
     return;

@@ -274,19 +274,6 @@ function getCurrentTimeHHMM() {
   return `${hour}${minutes}`;
 }
 
-// YYYYMMDD形式を、YYYY/MM/DD形式(ただしゼロ埋めはしない)に変換する
-function formatDateToSlashed(dateStr) {
-  if (!/^\d{8}$/.test(dateStr)) {
-    throw new Error('日付は8桁のYYYYMMDD形式で入力してください');
-  }
-
-  const year = dateStr.slice(0, 4);
-  const month = String(parseInt(dateStr.slice(4, 6), 10)); // 例: "07" → 7 → "7"
-  const day = String(parseInt(dateStr.slice(6, 8), 10));   // 例: "05" → 5 → "5"
-
-  return `${year}/${month}/${day}`;
-}
-
 // テンプレートファイルを読み込む
 async function renderTemplate(filePath, values) {
   try {

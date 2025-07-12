@@ -4,7 +4,6 @@ import { pushMessage } from './lineUtil.mjs';
 
 const LINE_MY_USER_ID = process.env.LINE_MY_USER_ID;
 
-// TODO 毎日実行にして、打刻が取れなければ何もしない、という方式にする
 export async function execBatch() {
 
   // 昨日の日付を取得

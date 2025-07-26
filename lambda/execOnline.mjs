@@ -5,6 +5,7 @@ import { putItemToDB, deleteItemFromDB, getItemFromDB } from './dynamoDbUtil.mjs
 import { replyMessage, pushMessage, showLoadingAnimation } from './lineUtil.mjs';
 import fs from 'fs/promises';
 
+const CHRONUS_BASE_URL = process.env.CHRONUS_BASE_URL;
 const LINE_CHANNEL_SECRET = process.env.LINE_CHANNEL_SECRET;
 const LINE_MY_USER_ID = process.env.LINE_MY_USER_ID;
 
@@ -114,7 +115,7 @@ export async function execOnline(req) {
     }
 
     // 完了通知
-    await replyMessage(replyToken, result.success ? "登録が完了しました" : result.msg);
+    await replyMessage(replyToken, result.success ? `登録が完了しました\n\n調整が必要な場合は以下から修正してください\n${CHRONUS_BASE_URL}&openExternalBrowser=1` : result.msg);
     await deleteItemFromDB(LINE_MY_USER_ID);
   }
 
@@ -216,7 +217,7 @@ export async function execOnline(req) {
       }
 
       // 完了通知
-      await pushMessage(LINE_MY_USER_ID, result.success ? "登録が完了しました" : result.msg);
+      await pushMessage(LINE_MY_USER_ID, result.success ? `登録が完了しました\n\n調整が必要な場合は以下から修正してください\n${CHRONUS_BASE_URL}&openExternalBrowser=1` : result.msg);
       await deleteItemFromDB(LINE_MY_USER_ID);
     }
   }

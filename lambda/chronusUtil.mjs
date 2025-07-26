@@ -42,9 +42,11 @@ export async function registKintai(date, startTime, endTime) {
         pjCodeInfo = allocateWorkingTime(workingTime, pjCodeInfo);
         console.log(`PJコード情報(時間計算後) : ${JSON.stringify(pjCodeInfo)}`);
         await inputWorkDetails(operationFrame, startTime, endTime, pjCodeInfo);
+        console.log('詳細入力完了');
 
         const success = await submitRegistration(operationFrame, page);
         if (!success) throw new Error('登録ボタンの押下に失敗しました');
+        console.log('勤怠登録完了');
 
         return { success: true };
     } catch (err) {

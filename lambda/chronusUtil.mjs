@@ -49,6 +49,8 @@ export async function registKintai(date, startTime, endTime) {
         // allowanceは、28:出社、29:フルテレワーク、30:その他(出張等)
         const allowance = defaultSettings.allowance;
         console.log(`手当のタイプ : ${allowance}`);
+        await inputAllowance(operationFrame, allowance);
+        console.log('手当入力完了');
 
         const success = await submitRegistration(operationFrame, page);
         if (!success) throw new Error('登録ボタンの押下に失敗しました');
@@ -207,6 +209,52 @@ async function inputWorkDetails(frame, start, end, pjCodeInfo) {
 
     if (!result.success) throw new Error(result.msg);
 }
+
+// 勤務区分(出社・テレワークなど)を選択して値を入力する関数
+async function inputAllowance(frame, allowance) {
+    // --- 引数チェック ---
+    if (!["28", "29", "30"].includes(allowance)) {
+        throw new Error(`引数allowanceの値(${allowance})が不正です。"28","29","30"のいずれかを指定してください`);
+    }
+
+    // --- ブラウザ側DOM操作 ---
+    const result = await frame.evaluate((allowance) => {
+        try {
+            const select = document.querySelector('select[name="AllowanceItem"]');
+            const input = document.querySelector('input[name="AllowanceItemValue"]');
+            if (!select) {
+                return { success: false, msg: 'select[name="AllowanceItem"] が見つかりません' };
+            }
+            if (!input) {
+                return { success: false, msg: 'input[name="AllowanceItemValue"] が見つかりません' };
+            }
+
+            const optionValue = `AllowanceItem_${allowance}`;
+            const option = Array.from(select.options).find(o => o.value === optionValue);
+            if (!option) {
+                return { success: false, msg: `AllowanceItem_${allowance} に対応するoptionが見つかりません` };
+            }
+
+            // セレクト変更
+            select.value = option.value;
+            select.dispatchEvent(new Event('change', { bubbles: true }));
+
+            // 値入力
+            input.value = "1";
+            input.dispatchEvent(new Event('blur', { bubbles: true }));
+
+            return { success: true };
+        } catch (err) {
+            return { success: false, msg: `例外が発生しました: ${err.message}` };
+        }
+    }, allowance);
+
+    // --- 結果チェック ---
+    if (!result.success) {
+        throw new Error(result.msg);
+    }
+}
+
 
 // 登録ボタン押下と成功判定
 async function submitRegistration(frame, page) {

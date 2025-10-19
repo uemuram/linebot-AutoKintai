@@ -4,7 +4,7 @@ import puppeteer from 'puppeteer-core';
 const CHRONUS_BASE_URL = process.env.CHRONUS_BASE_URL;
 const CHRONUS_PERSON_CODE = process.env.CHRONUS_PERSON_CODE;
 const CHRONUS_PERSON_PASSWORD = process.env.CHRONUS_PERSON_PASSWORD;
-const CHRONUS_PJCODE_INFO = process.env.CHRONUS_PJCODE_INFO;
+const CHRONUS_DEFAULT_SETTINGS = process.env.CHRONUS_DEFAULT_SETTINGS;
 
 // 勤怠登録
 export async function registKintai(date, startTime, endTime) {
@@ -37,12 +37,18 @@ export async function registKintai(date, startTime, endTime) {
         const workingTime = calculateWorkingTime(startTime, endTime);
         console.log(`業務時間: ${year}/${month}/${day} ${startTime}-${endTime} → 工数: ${workingTime}`);
 
-        let pjCodeInfo = JSON.parse(CHRONUS_PJCODE_INFO);
-        console.log(`PJコード情報(時間計算前) : ${JSON.stringify(pjCodeInfo)}`);
-        pjCodeInfo = allocateWorkingTime(workingTime, pjCodeInfo);
+        let defaultSettings = JSON.parse(CHRONUS_DEFAULT_SETTINGS);
+
+        const pjcodes = defaultSettings.pjcodes;
+        console.log(`PJコード情報(時間計算前) : ${JSON.stringify(pjcodes)}`);
+        let pjCodeInfo = allocateWorkingTime(workingTime, pjcodes);
         console.log(`PJコード情報(時間計算後) : ${JSON.stringify(pjCodeInfo)}`);
         await inputWorkDetails(operationFrame, startTime, endTime, pjCodeInfo);
         console.log('詳細入力完了');
+
+        // allowanceは、28:出社、29:フルテレワーク、30:その他(出張等)
+        const allowance = defaultSettings.allowance;
+        console.log(`手当のタイプ : ${allowance}`);
 
         const success = await submitRegistration(operationFrame, page);
         if (!success) throw new Error('登録ボタンの押下に失敗しました');
@@ -240,7 +246,7 @@ function calculateWorkingTime(start, end) {
 }
 
 // 業務時間を比率に従って分割する
-function allocateWorkingTime(workingTime, projectInfo) {
+function allocateWorkingTime(workingTime, pjcodes) {
     const toMinutes = (hhmm) => {
         const hours = parseInt(hhmm.slice(0, 2), 10);
         const minutes = parseInt(hhmm.slice(2), 10);
@@ -256,7 +262,6 @@ function allocateWorkingTime(workingTime, projectInfo) {
     const roundTo15 = (min) => Math.round(min / 15) * 15;
 
     const totalMinutes = toMinutes(workingTime);
-    const pjcodes = projectInfo.pjcodes;
     const totalRatio = pjcodes.reduce((sum, p) => sum + p.ratio, 0);
 
     // 仮の分割結果（15分未満も含む）
